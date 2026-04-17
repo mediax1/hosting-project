@@ -5,9 +5,9 @@ import Languages from "@/components/Languages";
 export default function Home() {
   return (
     <>
-      <Navbar />
+
       <Hero />
-      <Languages />
+
     </>
   );
 }
