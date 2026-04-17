@@ -1,14 +1,16 @@
 import { getUser, getAvatarUrl } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import clientPromise from "@/lib/mongodb";
 import Image from "next/image";
 import Link from "next/link";
 
 export default async function PanelPage() {
   const user = await getUser();
-
   if (!user) redirect("/login");
 
-  const credits = 0;
+  const db = (await clientPromise).db();
+  const record = await db.collection("users").findOne({ discordId: user.id });
+  const credits = record?.credits ?? 0;
 
   return (
     <div className="min-h-screen bg-[#080808]">
@@ -16,7 +18,6 @@ export default async function PanelPage() {
         <Link href="/" className="text-white font-semibold text-base">
           Hosting<span className="text-indigo-400">Site</span>
         </Link>
-
         <div className="flex items-center gap-3">
           <span className="text-gray-400 text-sm">{user.username}</span>
           <Image
