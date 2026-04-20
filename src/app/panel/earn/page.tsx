@@ -13,7 +13,29 @@ type State = {
   cooldownMs: number;
   captchaEvery: number;
   lastClaimAt: string | null;
+  nextResetAt: string;
 };
+
+function useCountdown(targetISO: string | null) {
+  const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0 });
+
+  useEffect(() => {
+    if (!targetISO) return;
+    const update = () => {
+      const diff = new Date(targetISO).getTime() - Date.now();
+      if (diff <= 0) { setTimeLeft({ h: 0, m: 0, s: 0 }); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft({ h, m, s });
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [targetISO]);
+
+  return timeLeft;
+}
 
 export default function EarnPage() {
   const [state, setState] = useState<State | null>(null);
@@ -30,6 +52,8 @@ export default function EarnPage() {
   const progressTimer = useRef<NodeJS.Timeout | null>(null);
   const holdStart = useRef<number>(0);
   const captchaRef = useRef<HCaptcha>(null);
+
+  const timeLeft = useCountdown(state?.nextResetAt ?? null);
 
   const fetchState = useCallback(async () => {
     const res = await fetch("/api/credits/claim");
@@ -123,6 +147,8 @@ export default function EarnPage() {
   const onCooldown = cooldownLeft > 0;
   const disabled = atLimit || onCooldown || claiming || loading;
 
+  const pad = (n: number) => String(n).padStart(2, "0");
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#080808] flex items-center justify-center">
@@ -146,7 +172,7 @@ export default function EarnPage() {
         <p className="text-gray-500 text-sm mb-1">Panel / Earn</p>
         <h1 className="text-white text-2xl font-bold mb-2">Earn Credits</h1>
         <p className="text-gray-500 text-sm mb-10">
-          Hold the button for 2 seconds to earn 1 credit. Every {state?.captchaEvery} claims a captcha is required.
+          Hold the button for 2 seconds to earn 1 credit. Resets at midnight IST. Every {state?.captchaEvery} claims a captcha is required.
         </p>
 
         <div className="flex gap-4 mb-10">
@@ -164,9 +190,16 @@ export default function EarnPage() {
         </div>
 
         {atLimit ? (
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-5 text-center">
-            <p className="text-yellow-400 font-semibold text-sm">Daily limit reached</p>
-            <p className="text-gray-500 text-xs mt-1">Come back tomorrow to earn more credits.</p>
+          <div className="bg-[#111111] border border-white/8 rounded-xl p-6 text-center space-y-3">
+            <p className="text-gray-400 text-sm">Daily limit reached. Resets in</p>
+            <p className="text-white text-4xl font-black font-mono tracking-tight">
+              {pad(timeLeft.h)}
+              <span className="text-gray-600">:</span>
+              {pad(timeLeft.m)}
+              <span className="text-gray-600">:</span>
+              {pad(timeLeft.s)}
+            </p>
+            <p className="text-gray-600 text-xs">Unclaimed credits do not carry over</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-6">
@@ -178,7 +211,7 @@ export default function EarnPage() {
                 onTouchStart={startHold}
                 onTouchEnd={cancelHold}
                 disabled={disabled}
-                className="relative w-36 h-36 rounded-full bg-[#111111] border-2 border-white/10 flex items-center justify-center select-none disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:border-indigo-500"
+                className="relative w-36 h-36 rounded-full bg-[#111111] border-2 border-white/10 flex items-center justify-center select-none disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ userSelect: "none" }}
               >
                 <svg viewBox="0 0 144 144" className="absolute inset-0 w-full h-full -rotate-90" style={{ pointerEvents: "none" }}>
@@ -199,6 +232,13 @@ export default function EarnPage() {
                 </span>
               </button>
             </div>
+
+            {onCooldown && (
+              <p className="text-gray-500 text-xs">
+                Next claim in{" "}
+                <span className="text-white font-mono">{pad(Math.floor(cooldownLeft / 60))}:{pad(cooldownLeft % 60)}</span>
+              </p>
+            )}
 
             {message && (
               <p className={`text-sm text-center ${message.type === "success" ? "text-green-400" : "text-red-400"}`}>
