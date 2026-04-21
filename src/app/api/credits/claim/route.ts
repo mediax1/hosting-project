@@ -41,7 +41,27 @@ export async function GET() {
     cooldownMs: COOLDOWN_MS,
     captchaEvery: CAPTCHA_EVERY,
     nextResetAt: nextReset.toISOString(),
+    totalSpins: record?.totalSpins ?? 0,
   });
+}
+
+// Wheel segments: index, reward, type, weight(%)
+const WHEEL_SEGMENTS = [
+  { segmentIndex: 0, reward: 1,  rewardType: "coin",     weight: 50 },
+  { segmentIndex: 1, reward: 2,  rewardType: "coin",     weight: 15 },
+  { segmentIndex: 2, reward: 10, rewardType: "coin",     weight: 5  },
+  { segmentIndex: 3, reward: 0,  rewardType: "tryagain", weight: 30 },
+];
+
+// Weighted random segment picker
+function pickSegment() {
+  const totalWeight = WHEEL_SEGMENTS.reduce((s, seg) => s + seg.weight, 0);
+  let rand = Math.random() * totalWeight;
+  for (const seg of WHEEL_SEGMENTS) {
+    rand -= seg.weight;
+    if (rand <= 0) return seg;
+  }
+  return WHEEL_SEGMENTS[0];
 }
 
 export async function POST(request: NextRequest) {
@@ -62,16 +82,16 @@ export async function POST(request: NextRequest) {
   const col = db.collection("users");
   const now = new Date();
   const todayIST = getISTDateString(now);
-
   const record = await col.findOne({ discordId: user.id });
-
   const claimsToday = record?.claimDate === todayIST ? (record?.claimsToday ?? 0) : 0;
 
+  // Daily limit check
   if (claimsToday >= DAILY_LIMIT) {
     const resetAt = getNextMidnightIST();
     return NextResponse.json({ error: "Daily limit reached.", resetAt: resetAt.toISOString() }, { status: 429 });
   }
 
+  // Cooldown check
   const lastClaimAt = record?.lastClaimAt ? new Date(record.lastClaimAt).getTime() : 0;
   const msSinceLast = now.getTime() - lastClaimAt;
   if (msSinceLast < COOLDOWN_MS) {
@@ -79,8 +99,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Wait ${waitSeconds}s before claiming again.` }, { status: 429 });
   }
 
+  // Captcha check
   const needsCaptcha = claimsToday > 0 && claimsToday % CAPTCHA_EVERY === 0;
-
   if (needsCaptcha) {
     if (!body.captchaToken) {
       return NextResponse.json({ error: "Captcha required.", needsCaptcha: true }, { status: 400 });
@@ -99,10 +119,14 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Spin reward logic
+  const spin = pickSegment();
+  const creditReward = spin.reward;
+
   await col.updateOne(
     { discordId: user.id },
     {
-      $inc: { credits: 1 },
+      $inc: { credits: creditReward, totalSpins: 1 },
       $set: {
         lastClaimAt: now,
         claimDate: todayIST,
@@ -120,5 +144,9 @@ export async function POST(request: NextRequest) {
     credits: updated?.credits ?? 0,
     claimsToday: claimsToday + 1,
     dailyLimit: DAILY_LIMIT,
+    totalSpins: updated?.totalSpins ?? 0,
+    segmentIndex: spin.segmentIndex,
+    reward: spin.reward,
+    rewardType: spin.rewardType,
   });
 }

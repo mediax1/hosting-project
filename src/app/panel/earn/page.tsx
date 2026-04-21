@@ -11,6 +11,7 @@ type State = {
   captchaEvery: number;
   lastClaimAt: string | null;
   nextResetAt: string;
+  totalSpins: number;
 };
 
 function useCountdown(targetISO: string | null) {
@@ -34,13 +35,12 @@ function useCountdown(targetISO: string | null) {
   return timeLeft;
 }
 
+// Wheel visual segments (must match API segment indices)
 const SEGMENTS = [
-  { emoji: "\u{1FA99}", label: "1",  color: "#18181b", type: "coin" },
-  { emoji: "\u{1FA99}", label: "10", color: "#27272a", type: "coin" },
-  { emoji: "\u{1FA99}", label: "50", color: "#18181b", type: "coin" },
-  { emoji: null,  label: "+2", color: "#27272a", type: "discord" },
-  { emoji: "\u{1FA99}", label: "2",  color: "#18181b", type: "coin" },
-  { emoji: "\u{1FA99}", label: "20", color: "#27272a", type: "coin" },
+  { emoji: "\u{1FA99}", label: "+1", color: "#18181b", type: "coin" },
+  { emoji: "\u{1FA99}", label: "+2", color: "#27272a", type: "coin" },
+  { emoji: "\u{1FA99}", label: "+10", color: "#18181b", type: "coin" },
+  { emoji: null, label: "Retry", color: "#27272a", type: "tryagain" },
 ];
 
 const SLICE_DEG = 360 / SEGMENTS.length;
@@ -49,7 +49,7 @@ export default function EarnPage() {
   const [state, setState] = useState<State | null>(null);
   const [loading, setLoading] = useState(true);
   const [cooldownLeft, setCooldownLeft] = useState(0);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: "success" | "error" | "tryagain"; text: string } | null>(null);
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
@@ -61,6 +61,7 @@ export default function EarnPage() {
   const captchaRef = useRef<HCaptcha>(null);
   const timeLeft = useCountdown(state?.nextResetAt ?? null);
 
+  // Fetch user spin state
   const fetchState = useCallback(async () => {
     const res = await fetch("/api/credits/claim");
     if (res.ok) {
@@ -77,6 +78,7 @@ export default function EarnPage() {
 
   useEffect(() => { fetchState(); }, [fetchState]);
 
+  // Cooldown ticker
   useEffect(() => {
     if (cooldownLeft <= 0) return;
     const t = setInterval(() => {
@@ -85,67 +87,148 @@ export default function EarnPage() {
     return () => clearInterval(t);
   }, [cooldownLeft]);
 
-  const doClaim = useCallback(async (token?: string) => {
-    setClaiming(true);
-    setMessage(null);
+  const callClaim = useCallback(async (token?: string) => {
     const res = await fetch("/api/credits/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ captchaToken: token ?? undefined }),
     });
-    const data = await res.json();
-    if (res.ok) {
-      setMessage({ type: "success", text: "+1 credit earned!" });
-      setState((prev) => prev ? { ...prev, credits: data.credits, claimsToday: data.claimsToday } : prev);
-      setCooldownLeft(Math.ceil((state?.cooldownMs ?? 60000) / 1000));
-      setCaptchaToken(null);
-      captchaRef.current?.resetCaptcha();
-    } else if (data.needsCaptcha) {
+    return { ok: res.ok, data: await res.json() };
+  }, []);
+
+  // Rotation math: pointer at 12-o'clock, invert segCenter to land correct segment under pointer
+  const targetRotation = useCallback((segIdx: number) => {
+    const segCenter = segIdx * SLICE_DEG + SLICE_DEG / 2;
+    const jitter = (Math.random() - 0.5) * SLICE_DEG * 0.4;
+    const target = (360 - segCenter) + jitter;
+    const normalTarget = ((target % 360) + 360) % 360;
+    const curMod = ((rotation % 360) + 360) % 360;
+    let delta = normalTarget - curMod;
+    if (delta < 0) delta += 360;
+    return rotation + 1800 + delta;
+  }, [rotation]);
+
+  // Spin handler: calls API first, then animates wheel to result
+  const spin = useCallback(async () => {
+    if (cooldownLeft > 0 || claiming || !state || state.claimsToday >= state.dailyLimit || spinning) return;
+
+    // Captcha gate
+    const needsCaptcha = state.claimsToday > 0 && state.claimsToday % state.captchaEvery === 0;
+    if (needsCaptcha && !captchaToken) {
       setShowCaptcha(true);
       setMessage({ type: "error", text: "Please complete the captcha to continue." });
-    } else {
-      setMessage({ type: "error", text: data.error });
-    }
-    setClaiming(false);
-  }, [state]);
-
-  const spin = useCallback(() => {
-    if (cooldownLeft > 0 || claiming || !state || state.claimsToday >= state.dailyLimit || spinning) return;
-    setSpinning(true);
-    setMessage(null);
-
-    const needsCaptcha = state.claimsToday > 0 && state.claimsToday % state.captchaEvery === 0;
-
-    if (skipAnim) {
-      if (needsCaptcha && !captchaToken) {
-        setSpinning(false);
-        setShowCaptcha(true);
-        setMessage({ type: "error", text: "Please complete the captcha to continue." });
-      } else {
-        doClaim(captchaToken ?? undefined).finally(() => setSpinning(false));
-      }
       return;
     }
 
-    const extra = Math.floor(Math.random() * 360);
-    const target = rotation + 1800 + extra;
-    setRotation(target);
+    setSpinning(true);
+    setClaiming(true);
+    setMessage(null);
 
-    setTimeout(() => {
-      if (needsCaptcha && !captchaToken) {
-        setSpinning(false);
+    const { ok, data } = await callClaim(captchaToken ?? undefined);
+
+    if (!ok) {
+      if (data.needsCaptcha) {
         setShowCaptcha(true);
         setMessage({ type: "error", text: "Please complete the captcha to continue." });
       } else {
-        doClaim(captchaToken ?? undefined).finally(() => setSpinning(false));
+        setMessage({ type: "error", text: data.error });
       }
-    }, 3200);
-  }, [cooldownLeft, claiming, state, spinning, skipAnim, captchaToken, doClaim, rotation]);
+      setSpinning(false);
+      setClaiming(false);
+      setCaptchaToken(null);
+      captchaRef.current?.resetCaptcha();
+      return;
+    }
 
+    // Extract spin result from API
+    const segIdx: number = typeof data.segmentIndex === "number" ? data.segmentIndex : 0;
+    const reward: number = typeof data.reward === "number" ? data.reward : 1;
+    const rewardType: string = data.rewardType || "coin";
+
+    // Update local state with API response
+    setState((prev) =>
+      prev ? { ...prev, credits: data.credits, claimsToday: data.claimsToday, totalSpins: data.totalSpins ?? prev.totalSpins } : prev
+    );
+    setCooldownLeft(Math.ceil((state.cooldownMs ?? 2000) / 1000));
+    setCaptchaToken(null);
+    captchaRef.current?.resetCaptcha();
+
+    // Show reward message
+    const showResult = () => {
+      if (rewardType === "tryagain") {
+        setMessage({ type: "tryagain", text: "Try again! Better luck next spin 🔄" });
+      } else if (reward === 10) {
+        setMessage({ type: "success", text: "🎉 +10 credits earned!" });
+      } else if (reward === 2) {
+        setMessage({ type: "success", text: "✨ +2 credits earned!" });
+      } else {
+        setMessage({ type: "success", text: "+1 credit earned!" });
+      }
+      setSpinning(false);
+      setClaiming(false);
+    };
+
+    if (skipAnim) {
+      showResult();
+      return;
+    }
+
+    // Animate wheel to correct segment
+    const newRot = targetRotation(segIdx);
+    setRotation(newRot);
+    setTimeout(showResult, 3200);
+  }, [cooldownLeft, claiming, state, spinning, skipAnim, captchaToken, callClaim, targetRotation]);
+
+  // Captcha verify → auto-spin with token
   const handleCaptchaVerify = (token: string) => {
     setCaptchaToken(token);
     setShowCaptcha(false);
-    doClaim(token).finally(() => setSpinning(false));
+    setTimeout(() => {
+      setCaptchaToken(token);
+      (async () => {
+        setSpinning(true);
+        setClaiming(true);
+        setMessage(null);
+
+        const { ok, data } = await callClaim(token);
+        if (!ok) {
+          setMessage({ type: "error", text: data.error });
+          setSpinning(false);
+          setClaiming(false);
+          return;
+        }
+
+        const segIdx: number = data.segmentIndex ?? 0;
+        const reward: number = data.reward ?? 1;
+        const rewardType: string = data.rewardType ?? "coin";
+
+        setState((prev) =>
+          prev ? { ...prev, credits: data.credits, claimsToday: data.claimsToday, totalSpins: data.totalSpins ?? prev.totalSpins } : prev
+        );
+        setCooldownLeft(Math.ceil((state?.cooldownMs ?? 2000) / 1000));
+        setCaptchaToken(null);
+        captchaRef.current?.resetCaptcha();
+
+        const showResult = () => {
+          if (rewardType === "tryagain") {
+            setMessage({ type: "tryagain", text: "Try again! Better luck next spin 🔄" });
+          } else if (reward === 10) {
+            setMessage({ type: "success", text: "🎉 +10 credits earned!" });
+          } else if (reward === 2) {
+            setMessage({ type: "success", text: "✨ +2 credits earned!" });
+          } else {
+            setMessage({ type: "success", text: "+1 credit earned!" });
+          }
+          setSpinning(false);
+          setClaiming(false);
+        };
+
+        if (skipAnim) { showResult(); return; }
+        const newRot = targetRotation(segIdx);
+        setRotation(newRot);
+        setTimeout(showResult, 3200);
+      })();
+    }, 100);
   };
 
   const atLimit = state ? state.claimsToday >= state.dailyLimit : false;
@@ -153,13 +236,14 @@ export default function EarnPage() {
   const canSpin = !atLimit && !onCooldown && !claiming && !loading && !spinning;
   const pad = (n: number) => String(n).padStart(2, "0");
 
-  // SVG viewBox size (constant for path calculations)
+  // SVG wheel geometry
   const WHEEL_SIZE = 300;
   const R = WHEEL_SIZE / 2 - 10;
   const CX = WHEEL_SIZE / 2;
   const CY = WHEEL_SIZE / 2;
   const GAP = 1;
 
+  // Slice paths
   const slicePaths = SEGMENTS.map((seg, i) => {
     const a1 = ((i * SLICE_DEG) + GAP / 2 - 90) * Math.PI / 180;
     const a2 = (((i + 1) * SLICE_DEG) - GAP / 2 - 90) * Math.PI / 180;
@@ -176,26 +260,26 @@ export default function EarnPage() {
     );
   });
 
+  // Slice labels/icons
   const sliceContents = SEGMENTS.map((seg, i) => {
     const midAngle = ((i + 0.5) * SLICE_DEG - 90) * Math.PI / 180;
     const labelR = R * 0.65;
     const tx = CX + labelR * Math.cos(midAngle);
     const ty = CY + labelR * Math.sin(midAngle);
 
-    if (seg.type === "discord") {
+    if (seg.type === "tryagain") {
       return (
         <g key={`c${i}`} transform={`translate(${tx}, ${ty})`}>
-          <g transform="translate(-14, -18) scale(1.3)">
+          <g transform="translate(-12, -18) scale(1.1)">
             <path
-              d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"
-              fill="#5865F2"
-              transform="scale(0.9)"
+              d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+              fill="#FFB800"
             />
           </g>
-          <g transform="translate(18, 16)">
-            <rect x="-18" y="-11" width="36" height="22" rx="11" fill="#FFB800" />
-            <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="900" fill="#000">
-              {seg.label}
+          <g transform="translate(12, 14)">
+            <rect x="-28" y="-9" width="56" height="18" rx="9" fill="#FFB800" />
+            <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="9" fontWeight="900" fill="#000">
+              TRY AGAIN
             </text>
           </g>
         </g>
@@ -226,20 +310,17 @@ export default function EarnPage() {
   }
 
   return (
-    // Increased left/right padding significantly (px-8 md:px-12 lg:px-16) to prevent cutting off text within the dashboard panel bounds
     <div className="w-full h-full min-h-[500px] flex-1 relative flex flex-col items-center justify-center font-sans text-white overflow-hidden py-6 px-8 md:px-12 lg:px-16 selection:bg-[#FFB800] selection:text-black bg-transparent">
-      
-      {/* Background ambient glow */}
+
       <div className="absolute inset-0 z-0 pointer-events-none flex justify-center items-center overflow-hidden">
         <div className="w-[400px] h-[400px] bg-[#FFB800] opacity-[0.03] blur-[100px] rounded-full lg:translate-x-1/2"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-5xl flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 xl:gap-16">
-        
-        {/* Left Section: Stacked Text, Stats, and Controls */}
+
+        {/* Left: Text, Stats, Controls */}
         <div className="w-full lg:w-1/2 flex flex-col items-center lg:items-start text-center lg:text-left shrink-0">
-          
-          {/* Heading */}
+
           {atLimit ? (
             <h1 className="text-white text-5xl md:text-6xl lg:text-[5rem] xl:text-[5.5rem] font-black tracking-tight leading-[0.95] uppercase">
               Free Spin <br /> <span className="text-[#FFB800]">Used</span>
@@ -255,13 +336,12 @@ export default function EarnPage() {
             </>
           )}
 
-          {/* Stats Row */}
           <div className="flex gap-3 w-full max-w-sm mt-8 lg:mt-10">
             <div className="flex-1 bg-transparent border border-[#FFB800]/30 rounded-[20px] py-3 md:py-4 flex flex-col items-center justify-center relative overflow-hidden transition-all hover:border-[#FFB800]/60 hover:bg-[#FFB800]/5">
               <p className="text-gray-400 text-[9px] md:text-[10px] uppercase tracking-[0.2em] mb-1 font-semibold">Credits</p>
               <p className="text-white text-2xl md:text-3xl font-black">{state?.credits ?? 0}</p>
             </div>
-            
+
             <div className="flex-1 bg-transparent border border-[#FFB800]/30 rounded-[20px] py-3 md:py-4 flex flex-col items-center justify-center relative overflow-hidden transition-all hover:border-[#FFB800]/60 hover:bg-[#FFB800]/5">
               <p className="text-gray-400 text-[9px] md:text-[10px] uppercase tracking-[0.2em] mb-1 font-semibold">Spins Today</p>
               <p className="text-white text-2xl md:text-3xl font-black flex items-baseline gap-1">
@@ -271,11 +351,17 @@ export default function EarnPage() {
             </div>
           </div>
 
-          {/* Smooth UI Toggle for Skip Animation */}
+          <div className="mt-3 w-full max-w-sm">
+            <div className="bg-transparent border border-white/5 rounded-[16px] py-2.5 px-4 flex items-center justify-between">
+              <span className="text-gray-500 text-[10px] uppercase tracking-[0.15em] font-semibold">Lifetime Spins</span>
+              <span className="text-white text-sm font-black tabular-nums">{state?.totalSpins ?? 0}</span>
+            </div>
+          </div>
+
           <div className="mt-5 flex items-center gap-3 group cursor-pointer" onClick={() => setSkipAnim(!skipAnim)}>
             <span className="text-gray-400 font-medium text-xs md:text-sm select-none transition-colors group-hover:text-gray-200">Skip animation</span>
             <div className={`relative w-12 h-6 rounded-full transition-colors duration-300 ease-in-out border border-white/10 ${skipAnim ? 'bg-[#FFB800]' : 'bg-[#18181b]'}`}>
-              <div 
+              <div
                 className={`absolute top-[2px] left-[2px] w-4 h-4 bg-white rounded-full transition-transform duration-300 ease-spring shadow-md ${skipAnim ? 'translate-x-[24px]' : 'translate-x-0'}`}
               />
             </div>
@@ -283,20 +369,17 @@ export default function EarnPage() {
 
         </div>
 
-        {/* Right Section: Wheel Assembly Only */}
+        {/* Right: Wheel */}
         <div className="w-full lg:w-1/2 flex flex-col items-center justify-center shrink-0">
 
-          {/* The Wheel Assembly */}
           <div className="relative flex flex-col items-center shrink-0 mt-2 mb-4">
-            
-            {/* Glowing Top Pointer */}
+
             <div className="absolute -top-5 z-30 drop-shadow-[0_0_12px_rgba(255,184,0,0.8)]">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 22L2 2H22L12 22Z" fill="#09090b" stroke="#FFB800" strokeWidth="2" strokeLinejoin="round"/>
+                <path d="M12 22L2 2H22L12 22Z" fill="#09090b" stroke="#FFB800" strokeWidth="2" strokeLinejoin="round" />
               </svg>
             </div>
 
-            {/* Slightly reduced max-size to prevent hitting dashboard edges */}
             <div className="relative w-[300px] h-[300px] md:w-[340px] md:h-[340px] lg:w-[360px] lg:h-[360px] xl:w-[420px] xl:h-[420px] rounded-full shadow-[0_0_50px_rgba(255,184,0,0.15)] ring-4 ring-[#FFB800] ring-offset-4 ring-offset-[#09090b]">
               <svg
                 viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
@@ -307,13 +390,11 @@ export default function EarnPage() {
                 }}
               >
                 {slicePaths}
-                
-                {/* Inner ring to give structure inside the SVG */}
                 <circle cx={CX} cy={CY} r={R} fill="none" stroke="#333" strokeWidth="1" />
                 {sliceContents}
               </svg>
 
-              {/* Premium Center Button */}
+              {/* Center spin button */}
               <button
                 onClick={spin}
                 disabled={!canSpin}
@@ -349,14 +430,15 @@ export default function EarnPage() {
             </div>
           </div>
 
-          {/* Messages */}
+          {/* Result message */}
           <div className="h-6 flex items-center justify-center mt-2">
             {message && (
-              <p className={`text-xs md:text-sm font-semibold px-4 py-1.5 rounded-full backdrop-blur-md border ${
-                message.type === "success" 
-                  ? "text-[#FFB800] bg-[#FFB800]/10 border-[#FFB800]/20 shadow-[0_0_15px_rgba(255,184,0,0.2)]" 
+              <p className={`text-xs md:text-sm font-semibold px-4 py-1.5 rounded-full backdrop-blur-md border ${message.type === "success"
+                ? "text-[#FFB800] bg-[#FFB800]/10 border-[#FFB800]/20 shadow-[0_0_15px_rgba(255,184,0,0.2)]"
+                : message.type === "tryagain"
+                  ? "text-orange-400 bg-orange-400/10 border-orange-400/20"
                   : "text-red-400 bg-red-400/10 border-red-400/20"
-              }`}>
+                }`}>
                 {message.text}
               </p>
             )}
@@ -365,7 +447,7 @@ export default function EarnPage() {
         </div>
       </div>
 
-      {/* Captcha Modal */}
+      {/* Captcha modal */}
       {showCaptcha && (
         <div className="fixed inset-0 bg-[#09090b]/90 backdrop-blur-md flex flex-col items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-[#121214] border border-[#FFB800]/20 p-8 rounded-3xl flex flex-col items-center max-w-md w-full shadow-[0_0_40px_rgba(255,184,0,0.1)]">
@@ -376,7 +458,7 @@ export default function EarnPage() {
             </div>
             <h3 className="text-white text-2xl font-black mb-2">Human Check</h3>
             <p className="text-gray-400 text-sm mb-8 text-center">Complete the verification below to claim your credits and continue spinning.</p>
-            
+
             <div className="bg-black/50 p-2 rounded-xl border border-white/5 w-full flex justify-center">
               <HCaptcha
                 ref={captchaRef}
@@ -387,7 +469,7 @@ export default function EarnPage() {
             </div>
 
             <button
-              onClick={() => { setShowCaptcha(false); setSpinning(false); setMessage(null); }}
+              onClick={() => { setShowCaptcha(false); setSpinning(false); setClaiming(false); setMessage(null); }}
               className="mt-8 text-gray-500 hover:text-white font-medium text-sm transition-colors uppercase tracking-widest"
             >
               Cancel Spin
