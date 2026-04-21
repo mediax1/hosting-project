@@ -4,8 +4,6 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 
-const HOLD_DURATION = 2000;
-
 type State = {
   credits: number;
   claimsToday: number;
@@ -37,22 +35,31 @@ function useCountdown(targetISO: string | null) {
   return timeLeft;
 }
 
+const SEGMENTS = [
+  { emoji: "🪙", label: "1",  color: "#141414", type: "coin" },
+  { emoji: "🪙", label: "10", color: "#1c1c1c", type: "coin" },
+  { emoji: "🪙", label: "50", color: "#141414", type: "coin" },
+  { emoji: null,  label: "+2", color: "#1c1c1c", type: "discord" },
+  { emoji: "🪙", label: "2",  color: "#141414", type: "coin" },
+  { emoji: "🪙", label: "20", color: "#1c1c1c", type: "coin" },
+];
+
+const SLICE_DEG = 360 / SEGMENTS.length;
+
 export default function EarnPage() {
   const [state, setState] = useState<State | null>(null);
   const [loading, setLoading] = useState(true);
-  const [holding, setHolding] = useState(false);
-  const [holdProgress, setHoldProgress] = useState(0);
   const [cooldownLeft, setCooldownLeft] = useState(0);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
 
-  const holdTimer = useRef<NodeJS.Timeout | null>(null);
-  const progressTimer = useRef<NodeJS.Timeout | null>(null);
-  const holdStart = useRef<number>(0);
-  const captchaRef = useRef<HCaptcha>(null);
+  const [spinning, setSpinning] = useState(false);
+  const [skipAnim, setSkipAnim] = useState(false);
+  const [rotation, setRotation] = useState(0);
 
+  const captchaRef = useRef<HCaptcha>(null);
   const timeLeft = useCountdown(state?.nextResetAt ?? null);
 
   const fetchState = useCallback(async () => {
@@ -101,166 +108,256 @@ export default function EarnPage() {
       setMessage({ type: "error", text: data.error });
     }
     setClaiming(false);
-    setHoldProgress(0);
   }, [state]);
 
-  const startHold = useCallback(() => {
-    if (cooldownLeft > 0 || claiming || !state || state.claimsToday >= state.dailyLimit) return;
-    setHolding(true);
+  const spin = useCallback(() => {
+    if (cooldownLeft > 0 || claiming || !state || state.claimsToday >= state.dailyLimit || spinning) return;
+    setSpinning(true);
     setMessage(null);
-    holdStart.current = Date.now();
 
-    progressTimer.current = setInterval(() => {
-      const elapsed = Date.now() - holdStart.current;
-      setHoldProgress(Math.min((elapsed / HOLD_DURATION) * 100, 100));
-    }, 16);
+    const needsCaptcha = state.claimsToday > 0 && state.claimsToday % state.captchaEvery === 0;
 
-    holdTimer.current = setTimeout(() => {
-      clearInterval(progressTimer.current!);
-      setHolding(false);
-      setHoldProgress(100);
-      const needsCaptcha = state.claimsToday > 0 && state.claimsToday % state.captchaEvery === 0;
+    if (skipAnim) {
       if (needsCaptcha && !captchaToken) {
+        setSpinning(false);
         setShowCaptcha(true);
         setMessage({ type: "error", text: "Please complete the captcha to continue." });
       } else {
-        doClaim(captchaToken ?? undefined);
+        doClaim(captchaToken ?? undefined).finally(() => setSpinning(false));
       }
-    }, HOLD_DURATION);
-  }, [cooldownLeft, claiming, state, captchaToken, doClaim]);
+      return;
+    }
 
-  const cancelHold = useCallback(() => {
-    if (!holding) return;
-    clearTimeout(holdTimer.current!);
-    clearInterval(progressTimer.current!);
-    setHolding(false);
-    setHoldProgress(0);
-  }, [holding]);
+    const extra = Math.floor(Math.random() * 360);
+    const target = rotation + 1800 + extra;
+    setRotation(target);
+
+    setTimeout(() => {
+      if (needsCaptcha && !captchaToken) {
+        setSpinning(false);
+        setShowCaptcha(true);
+        setMessage({ type: "error", text: "Please complete the captcha to continue." });
+      } else {
+        doClaim(captchaToken ?? undefined).finally(() => setSpinning(false));
+      }
+    }, 3200);
+  }, [cooldownLeft, claiming, state, spinning, skipAnim, captchaToken, doClaim, rotation]);
 
   const handleCaptchaVerify = (token: string) => {
     setCaptchaToken(token);
     setShowCaptcha(false);
-    doClaim(token);
+    doClaim(token).finally(() => setSpinning(false));
   };
 
   const atLimit = state ? state.claimsToday >= state.dailyLimit : false;
   const onCooldown = cooldownLeft > 0;
-  const disabled = atLimit || onCooldown || claiming || loading;
-
+  const canSpin = !atLimit && !onCooldown && !claiming && !loading && !spinning;
   const pad = (n: number) => String(n).padStart(2, "0");
+
+  const WHEEL_SIZE = 340;
+  const R = WHEEL_SIZE / 2 - 10;
+  const CX = WHEEL_SIZE / 2;
+  const CY = WHEEL_SIZE / 2;
+  const GAP = 2.5;
+
+  const slicePaths = SEGMENTS.map((seg, i) => {
+    const a1 = ((i * SLICE_DEG) + GAP / 2 - 90) * Math.PI / 180;
+    const a2 = (((i + 1) * SLICE_DEG) - GAP / 2 - 90) * Math.PI / 180;
+    const x1 = CX + R * Math.cos(a1);
+    const y1 = CY + R * Math.sin(a1);
+    const x2 = CX + R * Math.cos(a2);
+    const y2 = CY + R * Math.sin(a2);
+    return (
+      <path
+        key={i}
+        d={`M${CX},${CY} L${x1},${y1} A${R},${R} 0 0,1 ${x2},${y2} Z`}
+        fill={seg.color}
+      />
+    );
+  });
+
+  const sliceContents = SEGMENTS.map((seg, i) => {
+    const midAngle = ((i + 0.5) * SLICE_DEG - 90) * Math.PI / 180;
+    const labelR = R * 0.65;
+    const tx = CX + labelR * Math.cos(midAngle);
+    const ty = CY + labelR * Math.sin(midAngle);
+
+    if (seg.type === "discord") {
+      return (
+        <g key={`c${i}`} transform={`translate(${tx}, ${ty})`}>
+          <g transform="translate(-14, -14) scale(1.2)">
+            <path
+              d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"
+              fill="#5865F2"
+              transform="scale(0.9)"
+              style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,.5))" }}
+            />
+          </g>
+          <g transform="translate(16, 16)">
+            <rect x="-17" y="-10" width="34" height="20" rx="10" fill="#FFB800" />
+            <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="11" fontWeight="800" fill="#000">
+              {seg.label}
+            </text>
+          </g>
+        </g>
+      );
+    }
+
+    return (
+      <g key={`c${i}`} transform={`translate(${tx}, ${ty})`}>
+        <text textAnchor="middle" dominantBaseline="central" fontSize="32" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,.6))" }}>
+          {seg.emoji}
+        </text>
+        <g transform="translate(18, 18)">
+          <rect x="-17" y="-10" width="34" height="20" rx="10" fill="#FFB800" />
+          <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="11" fontWeight="800" fill="#000">
+            {seg.label}
+          </text>
+        </g>
+      </g>
+    );
+  });
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#080808] flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <p className="text-gray-500 text-sm">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#080808]">
-      <header className="border-b border-white/5 px-6 h-14 flex items-center justify-between">
-        <Link href="/" className="text-white font-semibold text-base">
-          Hosting<span className="text-indigo-400">Site</span>
-        </Link>
-        <Link href="/panel" className="text-gray-500 hover:text-white text-sm transition-colors">
-          ← Back to panel
-        </Link>
-      </header>
+    <div className="space-y-6 relative overflow-hidden font-sans flex flex-col">
+      <main className="flex-grow flex flex-col items-center justify-center relative z-10 px-4 w-full">
 
-      <main className="max-w-md mx-auto px-6 py-16">
-        <p className="text-gray-500 text-sm mb-1">Panel / Earn</p>
-        <h1 className="text-white text-2xl font-bold mb-2">Earn Credits</h1>
-        <p className="text-gray-500 text-sm mb-10">
-          Hold the button for 2 seconds to earn 1 credit. Resets at midnight IST. Every {state?.captchaEvery} claims a captcha is required.
-        </p>
+        <div className="text-center mb-4">
+          {atLimit ? (
+            <h1 className="text-white text-2xl sm:text-3xl font-black tracking-tight">
+              You have already used<br />your Free Spin
+            </h1>
+          ) : (
+            <>
+              <p className="text-[#FFB800] font-bold text-sm tracking-wide mb-1">Free spin every day</p>
+              <h1 className="text-white text-2xl sm:text-3xl font-black tracking-tight">Spin to Earn Credits</h1>
+            </>
+          )}
+        </div>
 
-        <div className="flex gap-4 mb-10">
-          <div className="bg-[#111111] border border-white/8 rounded-xl p-4 flex-1">
-            <p className="text-gray-500 text-xs uppercase tracking-widest mb-1">Credits</p>
-            <p className="text-white text-3xl font-black">{state?.credits ?? 0}</p>
+        <div className="relative z-20 mb-[-16px]" style={{ filter: "drop-shadow(0 0 14px rgba(255,184,0,.5))" }}>
+          <svg width="42" height="34" viewBox="0 0 42 34" fill="none">
+            <path d="M21 32L3 4h36L21 32Z" stroke="#FFB800" strokeWidth="3" fill="transparent" strokeLinejoin="round" />
+          </svg>
+        </div>
+
+        <div className="relative flex-shrink-0" style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}>
+          <svg
+            viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
+            width={WHEEL_SIZE}
+            height={WHEEL_SIZE}
+            className="absolute inset-0"
+            style={{
+              transform: `rotate(${rotation}deg)`,
+              transition: spinning && !skipAnim ? "transform 3s cubic-bezier(.15,.7,.2,1)" : "none",
+              filter: "drop-shadow(0 0 40px rgba(255,184,0,.15))",
+            }}
+          >
+            {slicePaths}
+            <circle cx={CX} cy={CY} r={R + 1} fill="none" stroke="#FFB800" strokeWidth="4" />
+            {sliceContents}
+          </svg>
+
+          <button
+            onClick={spin}
+            disabled={!canSpin}
+            className="absolute rounded-full flex flex-col items-center justify-center z-20 transition-transform active:scale-95 disabled:active:scale-100"
+            style={{
+              width: 130,
+              height: 130,
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%,-50%)",
+              background: "radial-gradient(circle at 35% 30%, #ffffff, #d4d4d4)",
+              boxShadow: "0 0 40px rgba(255,255,255,.3), inset 0 -4px 12px rgba(0,0,0,.08)",
+              border: "7px solid #0a0a0a",
+              cursor: canSpin ? "pointer" : "default",
+            }}
+          >
+            {atLimit || onCooldown ? (
+              <>
+                <span className="text-[#666] text-[10px] font-bold uppercase tracking-widest mb-0.5">
+                  {atLimit ? "Resets In" : "Next Spin"}
+                </span>
+                <span className="text-[#111] text-[22px] font-black font-mono tracking-tight leading-none">
+                  {atLimit
+                    ? `${pad(timeLeft.h)}:${pad(timeLeft.m)}:${pad(timeLeft.s)}`
+                    : `${pad(Math.floor(cooldownLeft / 60))}:${pad(cooldownLeft % 60)}`}
+                </span>
+              </>
+            ) : (
+              <span className="text-[#111] text-[26px] font-black">{spinning ? "..." : "SPIN"}</span>
+            )}
+          </button>
+        </div>
+
+        {message && (
+          <p className={`text-sm mt-3 z-10 font-medium ${message.type === "success" ? "text-green-400" : "text-red-400"}`}>
+            {message.text}
+          </p>
+        )}
+
+        <div className="flex gap-3 w-full max-w-xs mt-5 z-10 px-4">
+          <div className="bg-[#0a0a0a]/80 backdrop-blur-sm border border-[#FFB800]/50 rounded-2xl p-3 flex-1 text-center shadow-[0_0_15px_rgba(255,184,0,0.1)]">
+            <p className="text-gray-500 text-[10px] uppercase tracking-widest mb-0.5">Credits</p>
+            <p className="text-white text-xl font-black">{state?.credits ?? 0}</p>
           </div>
-          <div className="bg-[#111111] border border-white/8 rounded-xl p-4 flex-1">
-            <p className="text-gray-500 text-xs uppercase tracking-widest mb-1">Today</p>
-            <p className="text-white text-3xl font-black">
+          <div className="bg-[#0a0a0a]/80 backdrop-blur-sm border border-[#FFB800]/50 rounded-2xl p-3 flex-1 text-center shadow-[0_0_15px_rgba(255,184,0,0.1)]">
+            <p className="text-gray-500 text-[10px] uppercase tracking-widest mb-0.5">Spins Today</p>
+            <p className="text-white text-xl font-black">
               {state?.claimsToday ?? 0}
-              <span className="text-gray-600 text-lg font-normal"> / {state?.dailyLimit ?? 10}</span>
+              <span className="text-gray-600 text-sm font-normal"> / {state?.dailyLimit ?? 10}</span>
             </p>
           </div>
         </div>
 
-        {atLimit ? (
-          <div className="bg-[#111111] border border-white/8 rounded-xl p-6 text-center space-y-3">
-            <p className="text-gray-400 text-sm">Daily limit reached. Resets in</p>
-            <p className="text-white text-4xl font-black font-mono tracking-tight">
-              {pad(timeLeft.h)}
-              <span className="text-gray-600">:</span>
-              {pad(timeLeft.m)}
-              <span className="text-gray-600">:</span>
-              {pad(timeLeft.s)}
-            </p>
-            <p className="text-gray-600 text-xs">Unclaimed credits do not carry over</p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-6">
-            <div className="relative">
-              <button
-                onMouseDown={startHold}
-                onMouseUp={cancelHold}
-                onMouseLeave={cancelHold}
-                onTouchStart={startHold}
-                onTouchEnd={cancelHold}
-                disabled={disabled}
-                className="relative w-36 h-36 rounded-full bg-[#111111] border-2 border-white/10 flex items-center justify-center select-none disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ userSelect: "none" }}
-              >
-                <svg viewBox="0 0 144 144" className="absolute inset-0 w-full h-full -rotate-90" style={{ pointerEvents: "none" }}>
-                  <circle cx="72" cy="72" r="68" fill="none" stroke="#ffffff10" strokeWidth="4" />
-                  <circle
-                    cx="72" cy="72" r="68"
-                    fill="none"
-                    stroke="#6366f1"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    strokeDasharray={`${2 * Math.PI * 68}`}
-                    strokeDashoffset={`${2 * Math.PI * 68 * (1 - holdProgress / 100)}`}
-                    style={{ transition: holding ? "none" : "stroke-dashoffset 0.2s ease" }}
-                  />
-                </svg>
-                <span className="text-white text-sm font-semibold z-10 text-center leading-tight px-2">
-                  {onCooldown ? `${cooldownLeft}s` : holding ? "Hold..." : "Hold"}
-                </span>
-              </button>
-            </div>
-
-            {onCooldown && (
-              <p className="text-gray-500 text-xs">
-                Next claim in{" "}
-                <span className="text-white font-mono">{pad(Math.floor(cooldownLeft / 60))}:{pad(cooldownLeft % 60)}</span>
-              </p>
-            )}
-
-            {message && (
-              <p className={`text-sm text-center ${message.type === "success" ? "text-green-400" : "text-red-400"}`}>
-                {message.text}
-              </p>
-            )}
-
-            {showCaptcha && (
-              <div className="flex flex-col items-center gap-3">
-                <p className="text-gray-400 text-xs">Complete the captcha to continue</p>
-                <HCaptcha
-                  ref={captchaRef}
-                  sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY!}
-                  onVerify={handleCaptchaVerify}
-                  theme="dark"
-                  loadAsync
-                />
-              </div>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-4 mt-5 z-10">
+          <span className="text-gray-300 text-base">Skip animation</span>
+          <button
+            onClick={() => setSkipAnim(!skipAnim)}
+            className="relative w-[52px] h-[28px] rounded-full transition-colors"
+            style={{ background: skipAnim ? "#FFB800" : "#2a2a2a" }}
+          >
+            <div
+              className="absolute top-[3px] w-[22px] h-[22px] rounded-full transition-all"
+              style={{
+                left: skipAnim ? "calc(100% - 25px)" : "3px",
+                background: skipAnim ? "#111" : "#fff",
+              }}
+            />
+          </button>
+        </div>
       </main>
+
+      {showCaptcha && (
+        <div className="fixed inset-0 bg-black/85 flex flex-col items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-[#0a0a0a]/80 backdrop-blur-sm border border-white/10 p-8 rounded-3xl flex flex-col items-center max-w-sm w-full">
+            <h3 className="text-white text-xl font-bold mb-1">Verification Required</h3>
+            <p className="text-gray-400 text-sm mb-6 text-center">Complete the captcha to claim your reward.</p>
+            <HCaptcha
+              ref={captchaRef}
+              sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY!}
+              onVerify={handleCaptchaVerify}
+              theme="dark"
+              loadAsync
+            />
+            <button
+              onClick={() => { setShowCaptcha(false); setSpinning(false); setMessage(null); }}
+              className="mt-6 text-gray-500 hover:text-white text-sm transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

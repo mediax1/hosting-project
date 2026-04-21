@@ -1,91 +1,92 @@
-import { getUser, getAvatarUrl } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import clientPromise from "@/lib/mongodb";
-import Image from "next/image";
 import Link from "next/link";
-import ServerList from "../../components/ServerList";
 
 export default async function PanelPage() {
   const user = await getUser();
   if (!user) redirect("/login");
 
-  const db = (await clientPromise).db();
-  const record = await db.collection("users").findOne({ discordId: user.id });
-  const credits = record?.credits ?? 0;
-  const servers = (record?.servers ?? []).map((s: Record<string, unknown>) => ({
-    ...s,
-    expiresAt: new Date(s.expiresAt as Date).toISOString(),
-    createdAt: new Date(s.createdAt as Date).toISOString(),
-  }));
+  let credits = 0;
+  let servers: any[] = [];
+
+  try {
+    const db = (await clientPromise).db();
+    const record = await db.collection("users").findOne({ discordId: user.id });
+    credits = record?.credits ?? 0;
+    servers = (record?.servers ?? []).map((s: Record<string, unknown>) => ({
+      ...s,
+      expiresAt: new Date(s.expiresAt as Date).toISOString(),
+      createdAt: new Date(s.createdAt as Date).toISOString(),
+    }));
+  } catch (error) {
+    console.error("Failed to connect to MongoDB, using default data for UI.");
+  }
+
+  const activeCount = servers.filter((s: { status: string }) => s.status !== "deleted").length;
 
   return (
-    <div className="min-h-screen bg-[#080808]">
-      <header className="border-b border-white/5 px-6 h-14 flex items-center justify-between">
-        <Link href="/" className="text-white font-semibold text-base">
-          Hosting<span className="text-indigo-400">Site</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <Link href="/api/auth/logout" className="text-gray-600 hover:text-gray-400 text-xs transition-colors">Logout</Link>
-          <span className="text-gray-400 text-sm">{user.username}</span>
-          <Image
-            src={getAvatarUrl(user)}
-            alt={user.username}
-            width={32}
-            height={32}
-            className="rounded-full"
-          />
-        </div>
-      </header>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-white text-3xl font-black tracking-tight">Overview</h1>
+        <p className="text-gray-400 mt-2 text-sm font-medium">Welcome back, check your stats and manage your servers.</p>
+      </div>
 
-      <main className="max-w-4xl mx-auto px-6 py-16 space-y-12">
-        <div>
-          <p className="text-gray-500 text-sm mb-1">Dashboard</p>
-          <h1 className="text-white text-2xl font-bold mb-6">Overview</h1>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="bg-[#111111] border border-white/8 rounded-xl p-6">
-              <p className="text-gray-500 text-xs uppercase tracking-widest mb-3">Credits</p>
-              <p className="text-white text-5xl font-black">{credits}</p>
-              <p className="text-gray-600 text-xs mt-2 mb-5">Available to spend</p>
-              <Link
-                href="/panel/earn"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors duration-150"
-              >
-                Earn Credits
-              </Link>
-            </div>
-
-            <Link
-              href="/panel/create"
-              className="bg-[#111111] border border-white/8 hover:border-white/20 rounded-xl p-6 flex flex-col justify-between transition-colors duration-150 group"
-            >
-              <div>
-                <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center mb-4">
-                  <svg className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                </div>
-                <p className="text-white font-semibold text-base">Create Server</p>
-                <p className="text-gray-500 text-xs mt-1">Deploy a new bot server</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <div className="bg-[#111] border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between group hover:border-[#FFB800]/50 transition-all duration-300">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[#FFB800]/10 blur-[50px] rounded-full pointer-events-none group-hover:bg-[#FFB800]/20 transition-all duration-500" />
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#1a1a1a] border border-white/5 flex items-center justify-center">
+                <svg className="w-5 h-5 text-[#FFB800]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
-              <p className="text-indigo-400 text-xs mt-6 group-hover:text-indigo-300 transition-colors">Get started →</p>
+              <span className="text-[#FFB800] text-xs font-bold px-2.5 py-1 bg-[#FFB800]/10 rounded-full">Balance</span>
+            </div>
+            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Available Credits</p>
+            <h2 className="text-white text-5xl font-black tracking-tight">{credits}</h2>
+          </div>
+          <div className="mt-8">
+            <Link href="/panel/earn" className="block w-full text-center bg-[#FFB800] hover:bg-[#E5A500] text-black font-bold py-3 rounded-xl transition-colors shadow-[0_0_15px_rgba(255,184,0,0.2)]">
+              Earn More
             </Link>
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white text-lg font-bold">Your Servers</h2>
-            <span className="text-gray-600 text-xs">
-              {servers.filter((s: { status: string }) => s.status !== "deleted").length} server(s)
-            </span>
+        <div className="bg-[#111] border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between group hover:border-white/20 transition-all duration-300">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#1a1a1a] border border-white/5 flex items-center justify-center">
+                <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3m3 3a3 3 0 100 6h13.5a3 3 0 100-6m-16.5-3a3 3 0 013-3h13.5a3 3 0 013 3m-19.5 0a4.5 4.5 0 01.9-2.7L5.737 5.1a3.375 3.375 0 012.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 01.9 2.7m0 0a3 3 0 01-3 3m0 3h.008v.008h-.008v-.008zm0-6h.008v.008h-.008v-.008zm-3 6h.008v.008h-.008v-.008zm0-6h.008v.008h-.008v-.008z" />
+                </svg>
+              </div>
+              <span className="text-gray-400 text-xs font-bold px-2.5 py-1 bg-white/5 rounded-full">Network</span>
+            </div>
+            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Active Servers</p>
+            <h2 className="text-white text-5xl font-black tracking-tight">{activeCount}</h2>
+            <p className="text-gray-500 text-sm mt-2 font-medium">Out of {servers.length} total deployments</p>
           </div>
-          <ServerList
-            initialServers={servers}
-            pterodactylUrl={process.env.NEXT_PUBLIC_PTERODACTYL_URL ?? ""}
-          />
+          <div className="mt-8">
+            <Link href="/panel/servers" className="block w-full text-center bg-[#1a1a1a] hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-colors border border-white/5">
+              Manage Servers
+            </Link>
+          </div>
         </div>
-      </main>
+
+        <Link href="/panel/create" className="bg-[#111] border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col items-center justify-center text-center group hover:border-[#FFB800]/50 hover:bg-[#FFB800]/5 transition-all duration-300 min-h-[250px]">
+          <div className="w-16 h-16 rounded-full bg-[#1a1a1a] border border-white/10 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#FFB800] group-hover:border-[#FFB800] transition-all duration-500 shadow-xl">
+            <svg className="w-8 h-8 text-gray-400 group-hover:text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+          </div>
+          <h3 className="text-white text-xl font-bold mb-2">Create New Server</h3>
+          <p className="text-gray-500 text-sm font-medium px-4">Deploy a new Discord bot in seconds.</p>
+        </Link>
+        
+      </div>
     </div>
   );
 }
