@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import Link from "next/link";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 type State = {
@@ -36,12 +35,12 @@ function useCountdown(targetISO: string | null) {
 }
 
 const SEGMENTS = [
-  { emoji: "🪙", label: "1",  color: "#141414", type: "coin" },
-  { emoji: "🪙", label: "10", color: "#1c1c1c", type: "coin" },
-  { emoji: "🪙", label: "50", color: "#141414", type: "coin" },
-  { emoji: null,  label: "+2", color: "#1c1c1c", type: "discord" },
-  { emoji: "🪙", label: "2",  color: "#141414", type: "coin" },
-  { emoji: "🪙", label: "20", color: "#1c1c1c", type: "coin" },
+  { emoji: "\u{1FA99}", label: "1",  color: "#18181b", type: "coin" },
+  { emoji: "\u{1FA99}", label: "10", color: "#27272a", type: "coin" },
+  { emoji: "\u{1FA99}", label: "50", color: "#18181b", type: "coin" },
+  { emoji: null,  label: "+2", color: "#27272a", type: "discord" },
+  { emoji: "\u{1FA99}", label: "2",  color: "#18181b", type: "coin" },
+  { emoji: "\u{1FA99}", label: "20", color: "#27272a", type: "coin" },
 ];
 
 const SLICE_DEG = 360 / SEGMENTS.length;
@@ -154,11 +153,12 @@ export default function EarnPage() {
   const canSpin = !atLimit && !onCooldown && !claiming && !loading && !spinning;
   const pad = (n: number) => String(n).padStart(2, "0");
 
-  const WHEEL_SIZE = 340;
+  // SVG viewBox size (constant for path calculations)
+  const WHEEL_SIZE = 300;
   const R = WHEEL_SIZE / 2 - 10;
   const CX = WHEEL_SIZE / 2;
   const CY = WHEEL_SIZE / 2;
-  const GAP = 2.5;
+  const GAP = 1;
 
   const slicePaths = SEGMENTS.map((seg, i) => {
     const a1 = ((i * SLICE_DEG) + GAP / 2 - 90) * Math.PI / 180;
@@ -185,17 +185,16 @@ export default function EarnPage() {
     if (seg.type === "discord") {
       return (
         <g key={`c${i}`} transform={`translate(${tx}, ${ty})`}>
-          <g transform="translate(-14, -14) scale(1.2)">
+          <g transform="translate(-14, -18) scale(1.3)">
             <path
               d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"
               fill="#5865F2"
               transform="scale(0.9)"
-              style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,.5))" }}
             />
           </g>
-          <g transform="translate(16, 16)">
-            <rect x="-17" y="-10" width="34" height="20" rx="10" fill="#FFB800" />
-            <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="11" fontWeight="800" fill="#000">
+          <g transform="translate(18, 16)">
+            <rect x="-18" y="-11" width="36" height="22" rx="11" fill="#FFB800" />
+            <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="900" fill="#000">
               {seg.label}
             </text>
           </g>
@@ -205,12 +204,12 @@ export default function EarnPage() {
 
     return (
       <g key={`c${i}`} transform={`translate(${tx}, ${ty})`}>
-        <text textAnchor="middle" dominantBaseline="central" fontSize="32" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,.6))" }}>
+        <text textAnchor="middle" dominantBaseline="central" fontSize="38" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.8))" }}>
           {seg.emoji}
         </text>
-        <g transform="translate(18, 18)">
-          <rect x="-17" y="-10" width="34" height="20" rx="10" fill="#FFB800" />
-          <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="11" fontWeight="800" fill="#000">
+        <g transform="translate(18, 16)">
+          <rect x="-18" y="-11" width="36" height="22" rx="11" fill="#FFB800" />
+          <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="900" fill="#000">
             {seg.label}
           </text>
         </g>
@@ -220,140 +219,178 @@ export default function EarnPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-gray-500 text-sm">Loading...</p>
+      <div className="flex items-center justify-center min-h-screen bg-transparent">
+        <div className="w-8 h-8 border-4 border-[#FFB800] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 relative overflow-hidden font-sans flex flex-col">
-      <main className="flex-grow flex flex-col items-center justify-center relative z-10 px-4 w-full">
+    // Increased left/right padding significantly (px-8 md:px-12 lg:px-16) to prevent cutting off text within the dashboard panel bounds
+    <div className="w-full h-full min-h-[500px] flex-1 relative flex flex-col items-center justify-center font-sans text-white overflow-hidden py-6 px-8 md:px-12 lg:px-16 selection:bg-[#FFB800] selection:text-black bg-transparent">
+      
+      {/* Background ambient glow */}
+      <div className="absolute inset-0 z-0 pointer-events-none flex justify-center items-center overflow-hidden">
+        <div className="w-[400px] h-[400px] bg-[#FFB800] opacity-[0.03] blur-[100px] rounded-full lg:translate-x-1/2"></div>
+      </div>
 
-        <div className="text-center mb-4">
+      <div className="relative z-10 w-full max-w-5xl flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 xl:gap-16">
+        
+        {/* Left Section: Stacked Text, Stats, and Controls */}
+        <div className="w-full lg:w-1/2 flex flex-col items-center lg:items-start text-center lg:text-left shrink-0">
+          
+          {/* Heading */}
           {atLimit ? (
-            <h1 className="text-white text-2xl sm:text-3xl font-black tracking-tight">
-              You have already used<br />your Free Spin
+            <h1 className="text-white text-5xl md:text-6xl lg:text-[5rem] xl:text-[5.5rem] font-black tracking-tight leading-[0.95] uppercase">
+              Free Spin <br /> <span className="text-[#FFB800]">Used</span>
             </h1>
           ) : (
             <>
-              <p className="text-[#FFB800] font-bold text-sm tracking-wide mb-1">Free spin every day</p>
-              <h1 className="text-white text-2xl sm:text-3xl font-black tracking-tight">Spin to Earn Credits</h1>
+              <p className="text-[#FFB800] font-bold text-[10px] md:text-xs tracking-[0.3em] uppercase mb-4 lg:mb-5">
+                Free spin every day
+              </p>
+              <h1 className="text-white text-6xl md:text-7xl lg:text-[5rem] xl:text-[5.5rem] font-black tracking-tighter leading-[0.85] uppercase">
+                Spin<br />The<br />Wheel
+              </h1>
             </>
           )}
+
+          {/* Stats Row */}
+          <div className="flex gap-3 w-full max-w-sm mt-8 lg:mt-10">
+            <div className="flex-1 bg-transparent border border-[#FFB800]/30 rounded-[20px] py-3 md:py-4 flex flex-col items-center justify-center relative overflow-hidden transition-all hover:border-[#FFB800]/60 hover:bg-[#FFB800]/5">
+              <p className="text-gray-400 text-[9px] md:text-[10px] uppercase tracking-[0.2em] mb-1 font-semibold">Credits</p>
+              <p className="text-white text-2xl md:text-3xl font-black">{state?.credits ?? 0}</p>
+            </div>
+            
+            <div className="flex-1 bg-transparent border border-[#FFB800]/30 rounded-[20px] py-3 md:py-4 flex flex-col items-center justify-center relative overflow-hidden transition-all hover:border-[#FFB800]/60 hover:bg-[#FFB800]/5">
+              <p className="text-gray-400 text-[9px] md:text-[10px] uppercase tracking-[0.2em] mb-1 font-semibold">Spins Today</p>
+              <p className="text-white text-2xl md:text-3xl font-black flex items-baseline gap-1">
+                {state?.claimsToday ?? 0}
+                <span className="text-gray-500 text-base font-bold">/ {state?.dailyLimit ?? 10}</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Smooth UI Toggle for Skip Animation */}
+          <div className="mt-5 flex items-center gap-3 group cursor-pointer" onClick={() => setSkipAnim(!skipAnim)}>
+            <span className="text-gray-400 font-medium text-xs md:text-sm select-none transition-colors group-hover:text-gray-200">Skip animation</span>
+            <div className={`relative w-12 h-6 rounded-full transition-colors duration-300 ease-in-out border border-white/10 ${skipAnim ? 'bg-[#FFB800]' : 'bg-[#18181b]'}`}>
+              <div 
+                className={`absolute top-[2px] left-[2px] w-4 h-4 bg-white rounded-full transition-transform duration-300 ease-spring shadow-md ${skipAnim ? 'translate-x-[24px]' : 'translate-x-0'}`}
+              />
+            </div>
+          </div>
+
         </div>
 
-        <div className="relative z-20 mb-[-16px]" style={{ filter: "drop-shadow(0 0 14px rgba(255,184,0,.5))" }}>
-          <svg width="42" height="34" viewBox="0 0 42 34" fill="none">
-            <path d="M21 32L3 4h36L21 32Z" stroke="#FFB800" strokeWidth="3" fill="transparent" strokeLinejoin="round" />
-          </svg>
-        </div>
+        {/* Right Section: Wheel Assembly Only */}
+        <div className="w-full lg:w-1/2 flex flex-col items-center justify-center shrink-0">
 
-        <div className="relative flex-shrink-0" style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}>
-          <svg
-            viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
-            width={WHEEL_SIZE}
-            height={WHEEL_SIZE}
-            className="absolute inset-0"
-            style={{
-              transform: `rotate(${rotation}deg)`,
-              transition: spinning && !skipAnim ? "transform 3s cubic-bezier(.15,.7,.2,1)" : "none",
-              filter: "drop-shadow(0 0 40px rgba(255,184,0,.15))",
-            }}
-          >
-            {slicePaths}
-            <circle cx={CX} cy={CY} r={R + 1} fill="none" stroke="#FFB800" strokeWidth="4" />
-            {sliceContents}
-          </svg>
+          {/* The Wheel Assembly */}
+          <div className="relative flex flex-col items-center shrink-0 mt-2 mb-4">
+            
+            {/* Glowing Top Pointer */}
+            <div className="absolute -top-5 z-30 drop-shadow-[0_0_12px_rgba(255,184,0,0.8)]">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 22L2 2H22L12 22Z" fill="#09090b" stroke="#FFB800" strokeWidth="2" strokeLinejoin="round"/>
+              </svg>
+            </div>
 
-          <button
-            onClick={spin}
-            disabled={!canSpin}
-            className="absolute rounded-full flex flex-col items-center justify-center z-20 transition-transform active:scale-95 disabled:active:scale-100"
-            style={{
-              width: 130,
-              height: 130,
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%,-50%)",
-              background: "radial-gradient(circle at 35% 30%, #ffffff, #d4d4d4)",
-              boxShadow: "0 0 40px rgba(255,255,255,.3), inset 0 -4px 12px rgba(0,0,0,.08)",
-              border: "7px solid #0a0a0a",
-              cursor: canSpin ? "pointer" : "default",
-            }}
-          >
-            {atLimit || onCooldown ? (
-              <>
-                <span className="text-[#666] text-[10px] font-bold uppercase tracking-widest mb-0.5">
-                  {atLimit ? "Resets In" : "Next Spin"}
-                </span>
-                <span className="text-[#111] text-[22px] font-black font-mono tracking-tight leading-none">
-                  {atLimit
-                    ? `${pad(timeLeft.h)}:${pad(timeLeft.m)}:${pad(timeLeft.s)}`
-                    : `${pad(Math.floor(cooldownLeft / 60))}:${pad(cooldownLeft % 60)}`}
-                </span>
-              </>
-            ) : (
-              <span className="text-[#111] text-[26px] font-black">{spinning ? "..." : "SPIN"}</span>
+            {/* Slightly reduced max-size to prevent hitting dashboard edges */}
+            <div className="relative w-[300px] h-[300px] md:w-[340px] md:h-[340px] lg:w-[360px] lg:h-[360px] xl:w-[420px] xl:h-[420px] rounded-full shadow-[0_0_50px_rgba(255,184,0,0.15)] ring-4 ring-[#FFB800] ring-offset-4 ring-offset-[#09090b]">
+              <svg
+                viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
+                className="absolute inset-0 w-full h-full rounded-full"
+                style={{
+                  transform: `rotate(${rotation}deg)`,
+                  transition: spinning && !skipAnim ? "transform 3.5s cubic-bezier(0.2, 0.8, 0.2, 1)" : "none",
+                }}
+              >
+                {slicePaths}
+                
+                {/* Inner ring to give structure inside the SVG */}
+                <circle cx={CX} cy={CY} r={R} fill="none" stroke="#333" strokeWidth="1" />
+                {sliceContents}
+              </svg>
+
+              {/* Premium Center Button */}
+              <button
+                onClick={spin}
+                disabled={!canSpin}
+                className="absolute rounded-full flex flex-col items-center justify-center z-20 transition-all active:scale-[0.97] disabled:active:scale-100 disabled:opacity-90
+                  w-[80px] h-[80px] md:w-[100px] md:h-[100px]"
+                style={{
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%,-50%)",
+                  background: "radial-gradient(circle at 35% 30%, #ffffff 0%, #e4e4e7 100%)",
+                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.8), inset 0 -4px 8px rgba(0,0,0,0.15)",
+                  border: "6px solid #09090b",
+                  cursor: canSpin ? "pointer" : "not-allowed",
+                }}
+              >
+                {atLimit || onCooldown ? (
+                  <div className="flex flex-col items-center">
+                    <span className="text-[#52525b] text-[9px] md:text-[10px] font-bold uppercase tracking-widest mb-0.5">
+                      {atLimit ? "Resets In" : "Wait"}
+                    </span>
+                    <span className="text-[#09090b] text-base md:text-xl font-black font-mono tracking-tighter leading-none">
+                      {atLimit
+                        ? `${pad(timeLeft.h)}:${pad(timeLeft.m)}:${pad(timeLeft.s)}`
+                        : `${pad(Math.floor(cooldownLeft / 60))}:${pad(cooldownLeft % 60)}`}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-[#09090b] text-xl md:text-2xl font-black tracking-tight" style={{ textShadow: "0 2px 4px rgba(255,255,255,0.8)" }}>
+                    {spinning ? "..." : "SPIN"}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="h-6 flex items-center justify-center mt-2">
+            {message && (
+              <p className={`text-xs md:text-sm font-semibold px-4 py-1.5 rounded-full backdrop-blur-md border ${
+                message.type === "success" 
+                  ? "text-[#FFB800] bg-[#FFB800]/10 border-[#FFB800]/20 shadow-[0_0_15px_rgba(255,184,0,0.2)]" 
+                  : "text-red-400 bg-red-400/10 border-red-400/20"
+              }`}>
+                {message.text}
+              </p>
             )}
-          </button>
-        </div>
-
-        {message && (
-          <p className={`text-sm mt-3 z-10 font-medium ${message.type === "success" ? "text-green-400" : "text-red-400"}`}>
-            {message.text}
-          </p>
-        )}
-
-        <div className="flex gap-3 w-full max-w-xs mt-5 z-10 px-4">
-          <div className="bg-[#0a0a0a]/80 backdrop-blur-sm border border-[#FFB800]/50 rounded-2xl p-3 flex-1 text-center shadow-[0_0_15px_rgba(255,184,0,0.1)]">
-            <p className="text-gray-500 text-[10px] uppercase tracking-widest mb-0.5">Credits</p>
-            <p className="text-white text-xl font-black">{state?.credits ?? 0}</p>
           </div>
-          <div className="bg-[#0a0a0a]/80 backdrop-blur-sm border border-[#FFB800]/50 rounded-2xl p-3 flex-1 text-center shadow-[0_0_15px_rgba(255,184,0,0.1)]">
-            <p className="text-gray-500 text-[10px] uppercase tracking-widest mb-0.5">Spins Today</p>
-            <p className="text-white text-xl font-black">
-              {state?.claimsToday ?? 0}
-              <span className="text-gray-600 text-sm font-normal"> / {state?.dailyLimit ?? 10}</span>
-            </p>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-4 mt-5 z-10">
-          <span className="text-gray-300 text-base">Skip animation</span>
-          <button
-            onClick={() => setSkipAnim(!skipAnim)}
-            className="relative w-[52px] h-[28px] rounded-full transition-colors"
-            style={{ background: skipAnim ? "#FFB800" : "#2a2a2a" }}
-          >
-            <div
-              className="absolute top-[3px] w-[22px] h-[22px] rounded-full transition-all"
-              style={{
-                left: skipAnim ? "calc(100% - 25px)" : "3px",
-                background: skipAnim ? "#111" : "#fff",
-              }}
-            />
-          </button>
         </div>
-      </main>
+      </div>
 
+      {/* Captcha Modal */}
       {showCaptcha && (
-        <div className="fixed inset-0 bg-black/85 flex flex-col items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-[#0a0a0a]/80 backdrop-blur-sm border border-white/10 p-8 rounded-3xl flex flex-col items-center max-w-sm w-full">
-            <h3 className="text-white text-xl font-bold mb-1">Verification Required</h3>
-            <p className="text-gray-400 text-sm mb-6 text-center">Complete the captcha to claim your reward.</p>
-            <HCaptcha
-              ref={captchaRef}
-              sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY!}
-              onVerify={handleCaptchaVerify}
-              theme="dark"
-              loadAsync
-            />
+        <div className="fixed inset-0 bg-[#09090b]/90 backdrop-blur-md flex flex-col items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-[#121214] border border-[#FFB800]/20 p-8 rounded-3xl flex flex-col items-center max-w-md w-full shadow-[0_0_40px_rgba(255,184,0,0.1)]">
+            <div className="w-12 h-12 rounded-full bg-[#FFB800]/10 flex items-center justify-center mb-4">
+              <svg className="w-6 h-6 text-[#FFB800]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <h3 className="text-white text-2xl font-black mb-2">Human Check</h3>
+            <p className="text-gray-400 text-sm mb-8 text-center">Complete the verification below to claim your credits and continue spinning.</p>
+            
+            <div className="bg-black/50 p-2 rounded-xl border border-white/5 w-full flex justify-center">
+              <HCaptcha
+                ref={captchaRef}
+                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY!}
+                onVerify={handleCaptchaVerify}
+                theme="dark"
+              />
+            </div>
+
             <button
               onClick={() => { setShowCaptcha(false); setSpinning(false); setMessage(null); }}
-              className="mt-6 text-gray-500 hover:text-white text-sm transition-colors"
+              className="mt-8 text-gray-500 hover:text-white font-medium text-sm transition-colors uppercase tracking-widest"
             >
-              Cancel
+              Cancel Spin
             </button>
           </div>
         </div>
