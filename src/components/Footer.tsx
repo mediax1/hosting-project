@@ -7,9 +7,9 @@ export default function Footer() {
       <span className="text-[#333]">•</span>
       <Link href="#" className="hover:text-gray-300 transition">About</Link>
       <span className="text-[#333]">•</span>
-      <Link href="#" className="hover:text-gray-300 transition">Privacy Policy</Link>
+      <Link href="/privacy" className="hover:text-gray-300 transition">Privacy Policy</Link>
       <span className="text-[#333]">•</span>
-      <Link href="#" className="hover:text-gray-300 transition">Terms &amp; Conditions</Link>
+      <Link href="/tos" className="hover:text-gray-300 transition">Terms &amp; Conditions</Link>
     </footer>
   );
 }

@@ -86,11 +86,10 @@ export default function PanelHeader({ username, avatarUrl }: PanelHeaderProps) {
           </button>
 
           {/* Dropdown menu */}
-          <div className={`absolute right-0 top-full mt-1 w-48 bg-[#111] border border-white/10 rounded-xl shadow-2xl transition-all duration-200 transform z-50 ${
-            dropdownOpen
+          <div className={`absolute right-0 top-full mt-1 w-48 bg-[#111] border border-white/10 rounded-xl shadow-2xl transition-all duration-200 transform z-50 ${dropdownOpen
               ? "opacity-100 visible translate-y-0"
               : "opacity-0 invisible translate-y-2"
-          }`}>
+            }`}>
             <div className="p-1.5">
               {/* Show username in dropdown on mobile */}
               <div className="sm:hidden px-3 py-2 border-b border-white/5 mb-1">
