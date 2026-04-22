@@ -121,3 +121,17 @@ async function getAvailableAllocation(): Promise<number> {
 export async function deletePteroServer(pteroServerId: number) {
   await ptero(`/servers/${pteroServerId}/force`, { method: "DELETE" });
 }
+
+export async function setPteroUserPassword(pteroUser: { id: number; email: string; username: string; first_name: string; last_name: string }, password: string) {
+  const data = await ptero(`/users/${pteroUser.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      email: pteroUser.email,
+      username: pteroUser.username,
+      first_name: pteroUser.first_name,
+      last_name: pteroUser.last_name,
+      password,
+    }),
+  });
+  return data.attributes;
+}

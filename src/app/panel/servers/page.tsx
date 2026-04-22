@@ -8,9 +8,14 @@ export default async function ServersPage() {
   if (!user) redirect("/login");
 
   let servers: any[] = [];
+  let pteroEmail: string | null = null;
+  let pteroPassword: string | null = null;
+
   try {
     const db = (await clientPromise).db();
     const record = await db.collection("users").findOne({ discordId: user.id });
+    pteroEmail = record?.pteroEmail ?? null;
+    pteroPassword = record?.pteroPassword ?? null;
     servers = (record?.servers ?? []).map((s: Record<string, unknown>) => ({
       ...s,
       expiresAt: new Date(s.expiresAt as Date).toISOString(),
@@ -30,7 +35,6 @@ export default async function ServersPage() {
       </div>
 
       <div className="bg-[#111] border border-white/10 rounded-2xl p-4 md:p-4 lg:p-6 shadow-2xl relative overflow-hidden flex-1 flex flex-col">
-        {/* Glow effect */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#FFB800]/5 blur-[100px] rounded-full pointer-events-none" />
 
         <div className="flex items-center justify-between mb-4 md:mb-3 relative z-10 shrink-0">
@@ -47,11 +51,12 @@ export default async function ServersPage() {
           </div>
         </div>
 
-        {/* Server list — scrollable inside card on desktop if many servers */}
         <div className="relative z-10 flex-1 overflow-y-auto scrollbar-hide">
           <ServerList
             initialServers={servers}
-            pterodactylUrl={process.env.NEXT_PUBLIC_PTERODACTYL_URL ?? ""}
+            pterodactylUrl={process.env.PTERODACTYL_URL ?? ""}
+            pteroEmail={pteroEmail}
+            pteroPassword={pteroPassword}
           />
         </div>
       </div>

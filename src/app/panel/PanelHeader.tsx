@@ -73,7 +73,7 @@ export default function PanelHeader({ username, avatarUrl }: PanelHeaderProps) {
           >
             <div className={`w-9 h-9 rounded-full bg-gradient-to-tr from-[#FFB800] to-[#E5A500] p-[2px] shadow-[0_0_15px_rgba(255,184,0,0.15)] ${dropdownOpen ? "shadow-[0_0_20px_rgba(255,184,0,0.3)]" : ""} transition-shadow`}>
               <div className="w-full h-full rounded-full bg-[#111] border border-white/10 flex items-center justify-center overflow-hidden relative">
-                <Image src={avatarUrl} alt="User" fill className="object-cover" />
+                <Image src={avatarUrl} alt="User" fill sizes="36px" className="object-cover" />
               </div>
             </div>
             {/* Username: hidden on small screens, shown on sm+ */}

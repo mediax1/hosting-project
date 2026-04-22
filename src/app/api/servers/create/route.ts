@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import clientPromise from "@/lib/mongodb";
-import { createPteroUser, getPteroUserByExternalId, getPteroUserByEmail, createPteroServer } from "@/lib/pterodactyl";
-
+import { createPteroUser, getPteroUserByExternalId, getPteroUserByEmail, createPteroServer, setPteroUserPassword } from "@/lib/pterodactyl";
 const PLANS = {
   starter:  { name: "Starter",  ram: 256,  cpu: 20,  storage: 1024,  price7: 20,  price30: 60  },
   standard: { name: "Standard", ram: 1024, cpu: 50,  storage: 2048,  price7: 40,  price30: 140 },
@@ -57,14 +56,27 @@ export async function POST(request: NextRequest) {
   }
 
   const email = user.email ?? `${user.id}@dynexus.space`;
+  const password = crypto.randomUUID();
   let pteroUser = await getPteroUserByExternalId(user.id);
-  if (!pteroUser) {
-    pteroUser = await getPteroUserByEmail(email);
-  }
-  if (!pteroUser) {
-    pteroUser = await createPteroUser(user.id, user.username, email);
-  }
+  if (!pteroUser) pteroUser = await getPteroUserByEmail(email);
 
+  if (!pteroUser) {
+    // New user — create with password and store it
+    pteroUser = await createPteroUser(user.id, user.username, email);
+    await setPteroUserPassword(pteroUser, password);
+    await col.updateOne(
+      { discordId: user.id },
+      { $set: { pteroPassword: password, pteroEmail: email } }
+    );
+  } else if (!record.pteroPassword) {
+    // Existing ptero user but we never stored their password — set one now
+    await setPteroUserPassword(pteroUser, password);
+    await col.updateOne(
+      { discordId: user.id },
+      { $set: { pteroPassword: password, pteroEmail: email } }
+    );
+  }
+  // If pteroPassword already exists in DB, skip — password stays the same
   let pteroServer;
   try {
     pteroServer = await createPteroServer({
