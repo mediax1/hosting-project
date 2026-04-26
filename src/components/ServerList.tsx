@@ -1,38 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { PLAN_COLORS, PLAN_DISPLAY, PLANS, type PlanKey, type Server } from "@/lib/plans";
 
-const PLAN_COLORS: Record<string, string> = {
-  starter: "text-gray-400",
-  standard: "text-indigo-400",
-  pro: "text-purple-400",
-  power: "text-red-400",
-};
-
-const PLAN_SPECS: Record<string, { ram: string; cpu: string; storage: string }> = {
-  starter:  { ram: "256MB", cpu: "20%",  storage: "1GB" },
-  standard: { ram: "1GB",   cpu: "50%",  storage: "2GB" },
-  pro:      { ram: "2GB",   cpu: "100%", storage: "4GB" },
-  power:    { ram: "4GB",   cpu: "150%", storage: "6GB" },
-};
-
-const PLAN_PRICES: Record<string, { price7: number; price30: number }> = {
-  starter:  { price7: 20,  price30: 60  },
-  standard: { price7: 40,  price30: 140 },
-  pro:      { price7: 80,  price30: 280 },
-  power:    { price7: 150, price30: 520 },
-};
-
-type Server = {
-  id: string;
-  pteroUuid: string;
-  name: string;
-  language: string;
-  plan: string;
-  duration: number;
-  expiresAt: string;
-  status: string;
-};
 
 function LiveTimer({ expiresAt }: { expiresAt: string }) {
   const [display, setDisplay] = useState("");
@@ -70,8 +40,8 @@ function RenewModal({ server, onClose, onRenewed }: {
   const [error, setError] = useState<string | null>(null);
 
   // Added safety check for plan existence
-  const planPrices = PLAN_PRICES[server.plan] || { price7: 0, price30: 0 };
-  const cost = duration === 7 ? planPrices.price7 : planPrices.price30;
+  const planData = PLANS[server.plan as PlanKey] || { price7: 0, price30: 0 };
+  const cost = duration === 7 ? planData.price7 : planData.price30;
 
   const handleRenew = async () => {
     setLoading(true);
@@ -250,7 +220,7 @@ export default function ServerList({
         <div className="space-y-3">
           {active.map((server) => {
             const expired = new Date(server.expiresAt).getTime() < Date.now();
-            const specs = PLAN_SPECS[server.plan];
+            const specs = PLAN_DISPLAY[server.plan as PlanKey];
             const planColor = PLAN_COLORS[server.plan] || "text-gray-400";
             const isDeleting = deletingId === server.id;
             const confirmingDelete = confirmDeleteId === server.id;

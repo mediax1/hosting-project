@@ -3,7 +3,8 @@
 import { SidebarProvider } from "@/components/SidebarContext";
 import Sidebar from "./Sidebar";
 import PanelHeader from "./PanelHeader";
-import PromoPopup from "@/components/PromoPopup";
+// COMMENTED OUT: Uncomment to re-enable the promotional popup for the store
+// import PromoPopup from "@/components/PromoPopup";
 
 interface PanelShellProps {
   username: string;
@@ -24,7 +25,8 @@ export default function PanelShell({ username, avatarUrl, children }: PanelShell
               {children}
             </div>
           </main>
-          <PromoPopup />
+          {/* COMMENTED OUT: Uncomment to re-enable the promotional popup */}
+          {/* <PromoPopup /> */}
         </div>
       </div>
     </SidebarProvider>

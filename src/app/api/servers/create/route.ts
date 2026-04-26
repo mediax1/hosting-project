@@ -2,15 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import clientPromise from "@/lib/mongodb";
 import { createPteroUser, getPteroUserByExternalId, getPteroUserByEmail, createPteroServer, setPteroUserPassword } from "@/lib/pterodactyl";
-const PLANS = {
-  starter:  { name: "Starter",  ram: 256,  cpu: 20,  storage: 1024,  price7: 20,  price30: 60  },
-  standard: { name: "Standard", ram: 1024, cpu: 50,  storage: 2048,  price7: 40,  price30: 140 },
-  pro:      { name: "Pro",      ram: 2048, cpu: 100, storage: 4096,  price7: 80,  price30: 280 },
-  power:    { name: "Power",    ram: 4096, cpu: 150, storage: 6144,  price7: 150, price30: 520 },
-} as const;
+import { PLANS, type PlanKey, type Duration } from "@/lib/plans";
 
-type PlanKey = keyof typeof PLANS;
-type Duration = 7 | 30;
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
@@ -108,12 +101,13 @@ export async function POST(request: NextRequest) {
     status: "active",
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MongoDB's UpdateFilter types are overly strict with union types
   await col.updateOne(
     { discordId: user.id },
     {
       $inc: { credits: -cost },
       $push: { servers: server },
-    }
+    } as any
   );
 
   return NextResponse.json({

@@ -2,12 +2,13 @@ import { getUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import clientPromise from "@/lib/mongodb";
 import ServerList from "@/components/ServerList";
+import type { Server } from "@/lib/plans";
 
 export default async function ServersPage() {
   const user = await getUser();
   if (!user) redirect("/login");
 
-  let servers: any[] = [];
+  let servers: Server[] = [];
   let pteroEmail: string | null = null;
   let pteroPassword: string | null = null;
 

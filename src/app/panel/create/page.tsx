@@ -2,20 +2,31 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PLANS as SHARED_PLANS, PLAN_DISPLAY, type PlanKey } from "@/lib/plans";
 
-const PLANS = [
-  { key: "starter",  name: "Starter",  badge: null,           color: "border-white/10",      ram: "256MB", cpu: "20%",  storage: "1GB", price7: 20,  price30: 60  },
-  { key: "standard", name: "Standard", badge: "⭐ Most Popular", color: "border-indigo-500/60", ram: "1GB",   cpu: "50%",  storage: "2GB", price7: 40,  price30: 140 },
-  { key: "pro",      name: "Pro",      badge: null,           color: "border-white/10",      ram: "2GB",   cpu: "100%", storage: "4GB", price7: 80,  price30: 280 },
-  { key: "power",    name: "Power",    badge: null,           color: "border-white/10",      ram: "4GB",   cpu: "150%", storage: "6GB", price7: 150, price30: 520 },
+const PLAN_UI: { key: PlanKey; badge: string | null; color: string }[] = [
+  { key: "starter", badge: null, color: "border-white/10" },
+  { key: "standard", badge: "⭐ Most Popular", color: "border-indigo-500/60" },
+  { key: "pro", badge: null, color: "border-white/10" },
+  { key: "power", badge: null, color: "border-white/10" },
 ];
+
+const PLANS = PLAN_UI.map((ui) => ({
+  ...ui,
+  name: SHARED_PLANS[ui.key].name,
+  ram: PLAN_DISPLAY[ui.key].ram,
+  cpu: PLAN_DISPLAY[ui.key].cpu,
+  storage: PLAN_DISPLAY[ui.key].storage,
+  price7: SHARED_PLANS[ui.key].price7,
+  price30: SHARED_PLANS[ui.key].price30,
+}));
 
 export default function CreateServerPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [language, setLanguage] = useState<"nodejs" | "python">("python");
-  const [plan, setPlan] = useState("standard");
-  const [duration, setDuration] = useState<7 | 30>(30);
+  const [plan, setPlan] = useState("starter");
+  const [duration, setDuration] = useState<7 | 30>(7);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,25 +37,30 @@ export default function CreateServerPage() {
     if (!name.trim()) { setError("Server name is required."); return; }
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/servers/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), language, plan, duration }),
-    });
-
-    let data: { error?: string } = {};
     try {
-      data = await res.json();
-    } catch {
-      setError("Server error. Please try again.");
-      setLoading(false);
-      return;
-    }
+      const res = await fetch("/api/servers/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), language, plan, duration }),
+      });
 
-    if (res.ok) {
-      router.push("/panel");
-    } else {
-      setError(data.error ?? "Something went wrong.");
+      let data: { error?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        setError("Server error. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      if (res.ok) {
+        router.push("/panel");
+      } else {
+        setError(data.error ?? "Something went wrong.");
+      }
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
       setLoading(false);
     }
   };
@@ -126,11 +142,10 @@ export default function CreateServerPage() {
                   <button
                     key={lang}
                     onClick={() => setLanguage(lang)}
-                    className={`flex-1 py-2.5 md:py-2 rounded-xl border text-sm font-bold transition-all duration-200 ${
-                      language === lang
+                    className={`flex-1 py-2.5 md:py-2 rounded-xl border text-sm font-bold transition-all duration-200 ${language === lang
                         ? "border-[#FFB800] bg-[#FFB800]/10 text-[#FFB800] shadow-[0_0_15px_rgba(255,184,0,0.15)]"
                         : "border-white/10 bg-[#1a1a1a] text-gray-400 hover:text-white hover:border-white/20"
-                    }`}
+                      }`}
                   >
                     {lang === "nodejs" ? "Node.js" : "Python"}
                   </button>
@@ -143,40 +158,54 @@ export default function CreateServerPage() {
           <div className="space-y-1.5">
             <label className="text-gray-400 text-xs font-bold uppercase tracking-widest">Plan</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-2 lg:gap-3">
-              {PLANS.map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => setPlan(p.key)}
-                  className={`relative text-left p-4 md:p-3 lg:p-4 rounded-xl border transition-all duration-300 overflow-hidden group/plan ${
-                    plan === p.key
-                      ? "border-[#FFB800] bg-[#FFB800]/5 shadow-[0_0_20px_rgba(255,184,0,0.1)]"
-                      : "border-white/10 bg-[#1a1a1a] hover:border-[#FFB800]/40 hover:shadow-[0_0_15px_rgba(255,184,0,0.05)]"
-                  }`}
-                >
-                  {/* Plan card glow effect */}
-                  <div className={`absolute top-0 right-0 w-20 h-20 rounded-full blur-[30px] pointer-events-none transition-all duration-500 ${
-                    plan === p.key ? "bg-[#FFB800]/15" : "bg-transparent group-hover/plan:bg-[#FFB800]/10"
-                  }`} />
+              {PLANS.map((p) => {
+                const isLocked = p.key !== "starter";
+                return (
+                  <button
+                    key={p.key}
+                    onClick={() => !isLocked && setPlan(p.key)}
+                    disabled={isLocked}
+                    className={`relative text-left p-4 md:p-3 lg:p-4 rounded-xl border transition-all duration-300 overflow-hidden group/plan ${isLocked
+                        ? "border-white/5 bg-[#1a1a1a] cursor-not-allowed"
+                        : plan === p.key
+                          ? "border-[#FFB800] bg-[#FFB800]/5 shadow-[0_0_20px_rgba(255,184,0,0.1)]"
+                          : "border-white/10 bg-[#1a1a1a] hover:border-[#FFB800]/40 hover:shadow-[0_0_15px_rgba(255,184,0,0.05)]"
+                      }`}
+                  >
+                    {/* Locked overlay */}
+                    {isLocked && (
+                      <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-[2px] rounded-xl flex flex-col items-center justify-center">
+                        <svg className="w-5 h-5 text-gray-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                        </svg>
+                        <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Coming Soon</span>
+                      </div>
+                    )}
 
-                  {p.badge && (
-                    <span className="absolute top-3 right-3 md:top-2 md:right-2 text-[10px] md:text-[9px] text-[#FFB800] font-bold bg-[#FFB800]/10 px-2 py-0.5 rounded-full">{p.badge}</span>
-                  )}
-                  <p className="text-white font-black text-base md:text-sm mb-1.5 md:mb-1 relative z-10">{p.name}</p>
-                  <div className="space-y-0.5 text-xs md:text-[11px] text-gray-500 font-medium relative z-10">
-                    <p>RAM: <span className="text-gray-300 font-bold">{p.ram}</span></p>
-                    <p>CPU: <span className="text-gray-300 font-bold">{p.cpu}</span></p>
-                    <p>Storage: <span className="text-gray-300 font-bold">{p.storage}</span></p>
-                  </div>
-                  <div className="mt-2 md:mt-1.5 pt-2 md:pt-1.5 border-t border-white/5 text-xs md:text-[11px] text-gray-500 font-medium flex items-center justify-between relative z-10">
-                    <span>
-                      <span className="text-[#FFB800] font-black text-sm md:text-xs">{p.price7}cr</span> / 7d
-                    </span>
-                    <span>
-                      <span className="text-[#FFB800] font-black text-sm md:text-xs">{p.price30}cr</span> / 30d
-                    </span>
-                  </div>
-                </button>
-              ))}
+                    {/* Plan card glow effect */}
+                    <div className={`absolute top-0 right-0 w-20 h-20 rounded-full blur-[30px] pointer-events-none transition-all duration-500 ${!isLocked && plan === p.key ? "bg-[#FFB800]/15" : "bg-transparent"
+                      }`} />
+
+                    {p.badge && (
+                      <span className="absolute top-3 right-3 md:top-2 md:right-2 text-[10px] md:text-[9px] text-[#FFB800] font-bold bg-[#FFB800]/10 px-2 py-0.5 rounded-full">{p.badge}</span>
+                    )}
+                    <p className="text-white font-black text-base md:text-sm mb-1.5 md:mb-1 relative z-10">{p.name}</p>
+                    <div className="space-y-0.5 text-xs md:text-[11px] text-gray-500 font-medium relative z-10">
+                      <p>RAM: <span className="text-gray-300 font-bold">{p.ram}</span></p>
+                      <p>CPU: <span className="text-gray-300 font-bold">{p.cpu}</span></p>
+                      <p>Storage: <span className="text-gray-300 font-bold">{p.storage}</span></p>
+                    </div>
+                    <div className="mt-2 md:mt-1.5 pt-2 md:pt-1.5 border-t border-white/5 text-xs md:text-[11px] text-gray-500 font-medium flex items-center justify-between relative z-10">
+                      <span>
+                        <span className="text-[#FFB800] font-black text-sm md:text-xs">{p.price7} credits</span> / 7d
+                      </span>
+                      <span>
+                        <span className="text-[#FFB800] font-black text-sm md:text-xs">{p.price30} credits</span> / 30d
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -184,19 +213,29 @@ export default function CreateServerPage() {
           <div className="space-y-1.5">
             <label className="text-gray-400 text-xs font-bold uppercase tracking-widest">Duration</label>
             <div className="flex gap-3">
-              {([7, 30] as const).map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDuration(d)}
-                  className={`flex-1 py-2.5 md:py-2 rounded-xl border text-sm font-bold transition-all duration-200 ${
-                    duration === d
-                      ? "border-[#FFB800] bg-[#FFB800]/10 text-[#FFB800] shadow-[0_0_15px_rgba(255,184,0,0.15)]"
-                      : "border-white/10 bg-[#1a1a1a] text-gray-400 hover:text-white hover:border-white/20"
-                  }`}
-                >
-                  {d} days
-                </button>
-              ))}
+              {([7, 30] as const).map((d) => {
+                const isDurationLocked = d !== 7;
+                return (
+                  <button
+                    key={d}
+                    onClick={() => !isDurationLocked && setDuration(d)}
+                    disabled={isDurationLocked}
+                    className={`relative flex-1 py-2.5 md:py-2 rounded-xl border text-sm font-bold transition-all duration-200 overflow-hidden ${isDurationLocked
+                        ? "border-white/5 bg-[#1a1a1a] text-gray-600 cursor-not-allowed"
+                        : duration === d
+                          ? "border-[#FFB800] bg-[#FFB800]/10 text-[#FFB800] shadow-[0_0_15px_rgba(255,184,0,0.15)]"
+                          : "border-white/10 bg-[#1a1a1a] text-gray-400 hover:text-white hover:border-white/20"
+                      }`}
+                  >
+                    {isDurationLocked && (
+                      <div className="absolute inset-0 z-10 bg-black/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
+                        <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Coming Soon</span>
+                      </div>
+                    )}
+                    {d} days
+                  </button>
+                );
+              })}
             </div>
           </div>
 

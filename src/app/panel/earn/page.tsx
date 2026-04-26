@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
+import Link from "next/link";
 
 type State = {
   credits: number;
@@ -13,6 +14,8 @@ type State = {
   nextResetAt: string;
   totalSpins: number;
 };
+
+const IS_LAUNCHED = false; // Set to true to launch the Earn Credits feature!
 
 function useCountdown(targetISO: string | null) {
   const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0 });
@@ -309,8 +312,34 @@ export default function EarnPage() {
     );
   }
 
+  if (!IS_LAUNCHED) {
+    return (
+      <div className="relative w-full h-[80vh] min-h-[500px] flex-1">
+        <div className="absolute inset-0 z-50 bg-black/70 backdrop-blur-md flex flex-col items-center justify-center text-center px-4 rounded-2xl">
+          <div className="w-20 h-20 rounded-full bg-[#FFB800]/10 border border-[#FFB800]/30 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(255,184,0,0.15)]">
+            <svg className="w-10 h-10 text-[#FFB800]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+            </svg>
+          </div>
+          <h1 className="text-white text-3xl md:text-4xl font-black tracking-tight mb-3">
+            More Features <span className="text-[#FFB800]">Coming Soon!</span>
+          </h1>
+          <p className="text-gray-400 text-sm md:text-base leading-relaxed mb-8 max-w-sm">
+            We are set to launch more features! Stay tuned — until then, get your free bots hosted.
+          </p>
+          <Link
+            href="/panel/create"
+            className="px-8 py-3 bg-[#FFB800] hover:bg-[#E5A500] text-black text-sm font-black rounded-xl transition-all duration-200 shadow-[0_0_20px_rgba(255,184,0,0.3)] hover:shadow-[0_0_30px_rgba(255,184,0,0.5)] active:scale-95"
+          >
+            Create Free Server →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full h-full min-h-[500px] flex-1 relative flex flex-col items-center justify-center font-sans text-white overflow-hidden py-6 px-8 md:px-12 lg:px-16 selection:bg-[#FFB800] selection:text-black bg-transparent">
+    <div className="w-full h-full min-h-[500px] flex-1 flex flex-col items-center justify-center font-sans text-white overflow-hidden py-6 px-8 md:px-12 lg:px-16 selection:bg-[#FFB800] selection:text-black bg-transparent">
 
       <div className="absolute inset-0 z-0 pointer-events-none flex justify-center items-center overflow-hidden">
         <div className="w-[400px] h-[400px] bg-[#FFB800] opacity-[0.03] blur-[100px] rounded-full lg:translate-x-1/2"></div>

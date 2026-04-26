@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const clientId = process.env.DISCORD_CLIENT_ID!;
-  console.log("Client ID:", clientId);
   const redirectUri = encodeURIComponent(process.env.DISCORD_REDIRECT_URI!);
   const scope = encodeURIComponent("identify email");
 

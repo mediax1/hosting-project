@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import clientPromise from "@/lib/mongodb";
+import { PLANS, type PlanKey, type Duration } from "@/lib/plans";
 
-const PLANS = {
-  starter:  { price7: 20,  price30: 60  },
-  standard: { price7: 40,  price30: 140 },
-  pro:      { price7: 80,  price30: 280 },
-  power:    { price7: 150, price30: 520 },
-} as const;
-
-type PlanKey = keyof typeof PLANS;
-type Duration = 7 | 30;
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();

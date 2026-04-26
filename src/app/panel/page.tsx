@@ -2,13 +2,14 @@ import { getUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import clientPromise from "@/lib/mongodb";
 import Link from "next/link";
+import type { Server } from "@/lib/plans";
 
 export default async function PanelPage() {
   const user = await getUser();
   if (!user) redirect("/login");
 
   let credits = 0;
-  let servers: any[] = [];
+  let servers: Server[] = [];
 
   try {
     const db = (await clientPromise).db();

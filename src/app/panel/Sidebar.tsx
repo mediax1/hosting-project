@@ -52,7 +52,7 @@ export default function Sidebar() {
       {/* Mobile overlay backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] md:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -60,22 +60,21 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 h-screen w-64 bg-[#0a0a0a] border-r border-white/5 flex flex-col z-50 shrink-0
+          fixed top-0 left-0 h-screen w-64 bg-[#0a0a0a] border-r border-white/5 flex flex-col z-[100] shrink-0
           transition-transform duration-300 ease-in-out
           md:sticky md:translate-x-0
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
         {/* Header with logo and close button (mobile) */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-white/5 shrink-0">
-          <Link href="/" className="h-8 flex items-center justify-start">
+        <div className="h-24 flex items-center justify-between px-6 shrink-0">
+          <Link href="/" className="h-24 flex items-center justify-start">
             <img src="/images/DB.svg" alt="DB Logo" className="h-full w-auto object-contain cursor-pointer" />
           </Link>
           <button
             onClick={() => setIsOpen(false)}
             className="md:hidden w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
           >
-            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -91,8 +90,8 @@ export default function Sidebar() {
                 href={link.href}
                 onClick={() => setIsOpen(false)}
                 className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${isActive
-                    ? "bg-[#FFB800] text-black shadow-[0_0_15px_rgba(255,184,0,0.3)]"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                  ? "bg-[#FFB800] text-black shadow-[0_0_15px_rgba(255,184,0,0.3)]"
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
                   }`}
               >
                 {link.icon}

@@ -1,7 +1,7 @@
 "use client";
 
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -54,7 +54,7 @@ function LoginContent() {
 
             <p className="text-center text-gray-600 text-xs">
               By signing in you agree to our{" "}
-              <Link href="/terms" className="text-[#FFB800]/70 hover:text-[#FFB800] transition-colors">
+              <Link href="/tos" className="text-[#FFB800]/70 hover:text-[#FFB800] transition-colors">
                 Terms of Service
               </Link>
             </p>
@@ -68,7 +68,7 @@ function LoginContent() {
           </p>
         </div>
       </main>
-      <Footer />
+
     </div>
   );
 }

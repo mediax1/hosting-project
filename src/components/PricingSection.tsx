@@ -3,6 +3,19 @@
 import React from 'react';
 import { Check, X } from 'lucide-react';
 
+interface PricingFeature {
+  name: string;
+  included: boolean;
+}
+
+interface PricingCardProps {
+  title: string;
+  price: string;
+  description: string;
+  features: PricingFeature[];
+  isPro?: boolean;
+}
+
 /**
  * PricingCard Component
  * Reusable component for the pricing tiers.
@@ -13,7 +26,7 @@ const PricingCard = ({
   description,
   features,
   isPro = false,
-}: any) => {
+}: PricingCardProps) => {
   return (
     <div
       className={`relative flex flex-col p-4 md:p-3 lg:p-5 rounded-[20px] md:rounded-[16px] lg:rounded-[24px] transition-all duration-500 backdrop-blur-2xl border border-white/10
@@ -31,7 +44,7 @@ const PricingCard = ({
 
       {/* Feature List */}
       <div className="flex-grow space-y-2 md:space-y-1.5 lg:space-y-2 mb-3 md:mb-2 lg:mb-4">
-        {features.map((feature: any, index: number) => (
+        {features.map((feature: PricingFeature, index: number) => (
           <div key={index} className={`flex items-center gap-2 ${feature.included ? 'opacity-100' : 'opacity-40'}`}>
             <div className={`mt-0.5 flex-shrink-0 w-4 h-4 md:w-3.5 md:h-3.5 rounded-full flex items-center justify-center border ${feature.included ? 'bg-[#FFB800]/20 border-[#FFB800]/50' : 'bg-white/5 border-white/10'}`}>
               {feature.included ? (
