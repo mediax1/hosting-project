@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 
-
 export default function Hero() {
   const router = useRouter();
   const [showMore, setShowMore] = useState(false);

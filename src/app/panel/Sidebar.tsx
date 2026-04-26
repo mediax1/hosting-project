@@ -66,15 +66,15 @@ export default function Sidebar() {
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
-        {/* Header with logo and close button (mobile) */}
-        <div className="h-24 flex items-center justify-between px-6 shrink-0">
-          <Link href="/" className="h-24 flex items-center justify-start">
+        <div className="h-24 flex items-center justify-center px-6 shrink-0 relative">
+          <Link href="/" className="hidden md:flex h-24 items-center justify-center">
             <img src="/images/DB.svg" alt="DB Logo" className="h-full w-auto object-contain cursor-pointer" />
           </Link>
           <button
             onClick={() => setIsOpen(false)}
-            className="md:hidden w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+            className="md:hidden absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
           >
+            <X className="w-4 h-4" />
           </button>
         </div>
 

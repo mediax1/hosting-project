@@ -48,8 +48,8 @@ export default function PanelHeader({ username, avatarUrl }: PanelHeaderProps) {
       </div>
 
       {/* Center: Logo (mobile only) */}
-      <div className="md:hidden absolute left-1/2 -translate-x-1/2">
-        <Link href="/" className="h-7 flex items-center">
+      <div className="md:hidden absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
+        <Link href="/" className="h-20 flex items-center justify-center">
           <img src="/images/DB.svg" alt="DB Logo" className="h-full w-auto object-contain" />
         </Link>
       </div>
@@ -87,8 +87,8 @@ export default function PanelHeader({ username, avatarUrl }: PanelHeaderProps) {
 
           {/* Dropdown menu */}
           <div className={`absolute right-0 top-full mt-1 w-48 bg-[#111] border border-white/10 rounded-xl shadow-2xl transition-all duration-200 transform z-50 ${dropdownOpen
-              ? "opacity-100 visible translate-y-0"
-              : "opacity-0 invisible translate-y-2"
+            ? "opacity-100 visible translate-y-0"
+            : "opacity-0 invisible translate-y-2"
             }`}>
             <div className="p-1.5">
               {/* Show username in dropdown on mobile */}

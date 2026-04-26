@@ -102,7 +102,7 @@ export default async function PanelPage() {
             </div>
             <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Active Servers</p>
             <h2 className="text-white text-4xl md:text-3xl lg:text-4xl font-black tracking-tight">{activeCount}</h2>
-            <p className="text-gray-500 text-xs md:text-[11px] mt-1 font-medium">Out of {servers.length} total deployments</p>
+
           </div>
 
           {/* Activity graph visual */}
