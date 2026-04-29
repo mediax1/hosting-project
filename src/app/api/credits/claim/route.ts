@@ -47,10 +47,10 @@ export async function GET() {
 
 // Wheel segments: index, reward, type, weight(%)
 const WHEEL_SEGMENTS = [
-  { segmentIndex: 0, reward: 1,  rewardType: "coin",     weight: 50 },
-  { segmentIndex: 1, reward: 2,  rewardType: "coin",     weight: 15 },
-  { segmentIndex: 2, reward: 10, rewardType: "coin",     weight: 5  },
-  { segmentIndex: 3, reward: 0,  rewardType: "tryagain", weight: 30 },
+  { segmentIndex: 0, reward: 1, rewardType: "coin", weight: 80 },
+  { segmentIndex: 1, reward: 2, rewardType: "coin", weight: 2 },
+  { segmentIndex: 2, reward: 10, rewardType: "coin", weight: 1 },
+  { segmentIndex: 3, reward: 0, rewardType: "tryagain", weight: 17 },
 ];
 
 // Weighted random segment picker

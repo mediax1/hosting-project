@@ -214,7 +214,7 @@ export default function CreateServerPage() {
             <label className="text-gray-400 text-xs font-bold uppercase tracking-widest">Duration</label>
             <div className="flex gap-3">
               {([7, 30] as const).map((d) => {
-                const isDurationLocked = d !== 7;
+                const isDurationLocked = false;
                 return (
                   <button
                     key={d}

@@ -15,7 +15,7 @@ type State = {
   totalSpins: number;
 };
 
-const IS_LAUNCHED = false; // Set to true to launch the Earn Credits feature!
+const IS_LAUNCHED = true; // Set to true to launch the Earn Credits feature!
 
 function useCountdown(targetISO: string | null) {
   const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0 });
