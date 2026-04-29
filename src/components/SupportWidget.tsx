@@ -35,7 +35,6 @@ export default function SupportWidget() {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -45,7 +44,6 @@ export default function SupportWidget() {
   const handleQuestionClick = (qIndex: number) => {
     const faq = FAQ_QUESTIONS[qIndex];
 
-    // Add user message
     setMessages((prev) => [
       ...prev,
       { id: Date.now().toString(), sender: "user", text: faq.q },
@@ -53,7 +51,6 @@ export default function SupportWidget() {
 
     setIsTyping(true);
 
-    // Simulate typing delay for premium aesthetic
     setTimeout(() => {
       setIsTyping(false);
       setMessages((prev) => [
@@ -65,7 +62,6 @@ export default function SupportWidget() {
 
   return (
     <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end">
-      {/* Chat Window */}
       <div
         className={`
           mb-4 overflow-hidden flex flex-col

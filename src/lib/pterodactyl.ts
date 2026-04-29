@@ -135,3 +135,11 @@ export async function setPteroUserPassword(pteroUser: { id: number; email: strin
   });
   return data.attributes;
 }
+
+export async function suspendPteroServer(pteroServerId: number) {
+  await ptero(`/servers/${pteroServerId}/suspend`, { method: "POST" });
+}
+
+export async function unsuspendPteroServer(pteroServerId: number) {
+  await ptero(`/servers/${pteroServerId}/unsuspend`, { method: "POST" });
+}

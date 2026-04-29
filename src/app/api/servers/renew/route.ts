@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import clientPromise from "@/lib/mongodb";
+import { unsuspendPteroServer } from "@/lib/pterodactyl";
 import { PLANS, type PlanKey, type Duration } from "@/lib/plans";
 
 
@@ -45,6 +46,10 @@ export async function POST(request: NextRequest) {
   const base = currentExpiry > Date.now() ? currentExpiry : Date.now();
   const newExpiry = new Date(base + duration * 24 * 60 * 60 * 1000);
 
+  if (server.status === "suspended") {
+    await unsuspendPteroServer(server.pteroId);
+  }
+
   await col.updateOne(
     { discordId: user.id, "servers.id": serverId },
     {
@@ -53,9 +58,12 @@ export async function POST(request: NextRequest) {
         "servers.$.expiresAt": newExpiry,
         "servers.$.status": "active",
         "servers.$.duration": duration,
+        "servers.$.suspendedAt": null,
+        "servers.$.graceEndsAt": null,
       },
     }
   );
+
 
   const updated = await col.findOne({ discordId: user.id });
 

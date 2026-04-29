@@ -21,6 +21,8 @@ export default async function ServersPage() {
       ...s,
       expiresAt: new Date(s.expiresAt as Date).toISOString(),
       createdAt: new Date(s.createdAt as Date).toISOString(),
+      graceEndsAt: s.graceEndsAt ? new Date(s.graceEndsAt as Date).toISOString() : undefined,
+      suspendedAt: s.suspendedAt ? new Date(s.suspendedAt as Date).toISOString() : undefined,
     }));
   } catch (error) {
     console.error("Failed to connect to MongoDB, using default data for UI.");

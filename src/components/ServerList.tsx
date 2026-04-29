@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { PLAN_COLORS, PLAN_DISPLAY, PLANS, type PlanKey, type Server } from "@/lib/plans";
 
-
 function LiveTimer({ expiresAt }: { expiresAt: string }) {
   const [display, setDisplay] = useState("");
 
@@ -18,7 +17,6 @@ function LiveTimer({ expiresAt }: { expiresAt: string }) {
       const h = Math.floor((diff % 86400000) / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
-      
       if (d > 0) setDisplay(`${d}d ${h}h ${m}m ${s}s`);
       else setDisplay(`${h}h ${m}m ${s}s`);
     };
@@ -30,16 +28,40 @@ function LiveTimer({ expiresAt }: { expiresAt: string }) {
   return <span>{display}</span>;
 }
 
-function RenewModal({ server, onClose, onRenewed }: { 
-  server: Server; 
-  onClose: () => void; 
-  onRenewed: (newExpiry: string, creditsLeft: number) => void 
+function GraceTimer({ graceEndsAt }: { graceEndsAt: string }) {
+  const [display, setDisplay] = useState("");
+
+  useEffect(() => {
+    const update = () => {
+      const diff = new Date(graceEndsAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setDisplay("Grace period ended");
+        return;
+      }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      if (d > 0) setDisplay(`${d}d ${h}h ${m}m ${s}s`);
+      else setDisplay(`${h}h ${m}m ${s}s`);
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [graceEndsAt]);
+
+  return <span>{display}</span>;
+}
+
+function RenewModal({ server, onClose, onRenewed }: {
+  server: Server;
+  onClose: () => void;
+  onRenewed: (newExpiry: string, creditsLeft: number) => void;
 }) {
   const [duration, setDuration] = useState<7 | 30>(30);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Added safety check for plan existence
   const planData = PLANS[server.plan as PlanKey] || { price7: 0, price30: 0 };
   const cost = duration === 7 ? planData.price7 : planData.price30;
 
@@ -59,7 +81,7 @@ function RenewModal({ server, onClose, onRenewed }: {
       } else {
         setError(data.error || "Failed to renew");
       }
-    } catch (err) {
+    } catch {
       setError("A network error occurred.");
     } finally {
       setLoading(false);
@@ -72,6 +94,11 @@ function RenewModal({ server, onClose, onRenewed }: {
         <div>
           <h3 className="text-white font-bold text-base">Renew Server</h3>
           <p className="text-gray-500 text-xs mt-1">{server.name}</p>
+          {server.status === "suspended" && (
+            <p className="text-amber-400 text-xs mt-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+              Server is suspended. Renewing will restore it immediately.
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <p className="text-gray-400 text-xs uppercase tracking-widest">Duration</p>
@@ -132,7 +159,11 @@ export default function ServerList({
 
   const handleRenewed = (serverId: string, newExpiry: string) => {
     setServers((prev) =>
-      prev.map((s) => (s.id === serverId ? { ...s, expiresAt: newExpiry, status: "active" } : s))
+      prev.map((s) =>
+        s.id === serverId
+          ? { ...s, expiresAt: newExpiry, status: "active", suspendedAt: undefined, graceEndsAt: undefined }
+          : s
+      )
     );
   };
 
@@ -219,22 +250,44 @@ export default function ServerList({
       ) : (
         <div className="space-y-3">
           {active.map((server) => {
+            const isSuspended = server.status === "suspended";
             const expired = new Date(server.expiresAt).getTime() < Date.now();
             const specs = PLAN_DISPLAY[server.plan as PlanKey];
-            const planColor = PLAN_COLORS[server.plan] || "text-gray-400";
+            const planColor = PLAN_COLORS[server.plan as PlanKey] || "text-gray-400";
             const isDeleting = deletingId === server.id;
             const confirmingDelete = confirmDeleteId === server.id;
 
             return (
-              <div key={server.id} className="bg-[#111111] border border-white/10 rounded-xl p-5">
+              <div
+                key={server.id}
+                className={`bg-[#111111] border rounded-xl p-5 ${
+                  isSuspended ? "border-amber-500/30" : "border-white/10"
+                }`}
+              >
+                {isSuspended && (
+                  <div className="mb-3 flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                    <p className="text-amber-400 text-xs font-medium">
+                      Server suspended — renew before grace period ends to restore access
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${expired ? "bg-red-500" : "bg-green-400"}`} />
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${
+                      isSuspended ? "bg-amber-400" : expired ? "bg-red-500" : "bg-green-400"
+                    }`} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-white font-semibold text-sm">{server.name}</p>
                         <span className={`text-xs font-medium capitalize ${planColor}`}>{server.plan}</span>
                         <span className="text-gray-600 text-xs">{server.language === "nodejs" ? "Node.js" : "Python"}</span>
+                        {isSuspended && (
+                          <span className="text-xs font-medium text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                            Suspended
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
                         <span>{specs?.ram || "N/A"} RAM</span>
@@ -247,7 +300,7 @@ export default function ServerList({
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {!expired && server.pteroUuid && (
+                    {!expired && !isSuspended && server.pteroUuid && (
                       <a
                         href={`${pterodactylUrl}/server/${server.pteroUuid}`}
                         target="_blank"
@@ -259,7 +312,11 @@ export default function ServerList({
                     )}
                     <button
                       onClick={() => setRenewingServer(server)}
-                      className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 text-indigo-400 text-xs font-medium rounded-lg transition-colors"
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${
+                        isSuspended
+                          ? "bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/30 text-amber-400"
+                          : "bg-indigo-600/20 hover:bg-indigo-600/40 border-indigo-500/30 text-indigo-400"
+                      }`}
                     >
                       Renew
                     </button>
@@ -290,11 +347,24 @@ export default function ServerList({
                   </div>
                 </div>
 
-                <div className={`mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs ${expired ? "text-red-400" : "text-gray-500"}`}>
-                  <span>{expired ? "Expired" : "Expires in"}</span>
-                  <span className={`font-mono ${expired ? "text-red-400" : "text-gray-300"}`}>
-                    <LiveTimer expiresAt={server.expiresAt} />
-                  </span>
+                <div className={`mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs ${
+                  isSuspended ? "text-amber-500" : expired ? "text-red-400" : "text-gray-500"
+                }`}>
+                  {isSuspended && server.graceEndsAt ? (
+                    <>
+                      <span>Grace period ends in</span>
+                      <span className="font-mono text-amber-400">
+                        <GraceTimer graceEndsAt={server.graceEndsAt} />
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{expired ? "Expired" : "Expires in"}</span>
+                      <span className={`font-mono ${expired ? "text-red-400" : "text-gray-300"}`}>
+                        <LiveTimer expiresAt={server.expiresAt} />
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             );
