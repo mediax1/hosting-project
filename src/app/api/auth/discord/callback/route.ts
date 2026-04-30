@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 
 export async function GET(request: NextRequest) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
 
   if (!code) {
-    return NextResponse.redirect(new URL("/login?error=no_code", request.url));
+    return NextResponse.redirect(new URL("/login?error=no_code", baseUrl));
   }
 
   try {
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!tokenRes.ok) {
-      return NextResponse.redirect(new URL("/login?error=token_failed", request.url));
+      return NextResponse.redirect(new URL("/login?error=token_failed", baseUrl));
     }
 
     const tokenData = await tokenRes.json();
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!userRes.ok) {
-      return NextResponse.redirect(new URL("/login?error=user_failed", request.url));
+      return NextResponse.redirect(new URL("/login?error=user_failed", baseUrl));
     }
 
     const user = await userRes.json();
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
         access_token: tokenData.access_token,
       }),
     });
+
     const db = (await clientPromise).db();
     const col = db.collection("users");
 
@@ -79,7 +81,7 @@ export async function GET(request: NextRequest) {
     };
 
     const token = Buffer.from(JSON.stringify(payload)).toString("base64");
-    const response = NextResponse.redirect(new URL("/panel", request.url));
+    const response = NextResponse.redirect(new URL("/panel", baseUrl));
 
     response.cookies.set("token", token, {
       httpOnly: true,
@@ -91,6 +93,6 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch {
-    return NextResponse.redirect(new URL("/login?error=server_error", request.url));
+    return NextResponse.redirect(new URL("/login?error=server_error", baseUrl));
   }
 }
