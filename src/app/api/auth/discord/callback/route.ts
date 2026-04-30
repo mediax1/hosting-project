@@ -38,6 +38,19 @@ export async function GET(request: NextRequest) {
 
     const user = await userRes.json();
 
+    const guildId = process.env.DISCORD_GUILD_ID!;
+    const botToken = process.env.DISCORD_BOT_TOKEN!;
+
+    await fetch(`https://discord.com/api/guilds/${guildId}/members/${user.id}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bot ${botToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        access_token: tokenData.access_token,
+      }),
+    });
     const db = (await clientPromise).db();
     const col = db.collection("users");
 
