@@ -16,6 +16,11 @@ export default function PanelHeader({ username, avatarUrl }: PanelHeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const handleLogout = () => {
+    setDropdownOpen(false);
+    window.location.href = "/api/auth/logout";
+  };
+
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -54,18 +59,9 @@ export default function PanelHeader({ username, avatarUrl }: PanelHeaderProps) {
         </Link>
       </div>
 
-      {/* Right: notification + profile */}
+      {/* Right: profile */}
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* Notification bell */}
-        {/* <button className="w-9 h-9 rounded-full bg-[#141414] border border-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition-all">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-          </svg>
-        </button>
-
-        <div className="h-6 w-px bg-white/10 mx-0.5 sm:mx-1 hidden sm:block"></div> */}
-
-        {/* Profile dropdown — click-based for mobile + desktop */}
+        {/* Profile dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen((prev) => !prev)}
@@ -76,7 +72,6 @@ export default function PanelHeader({ username, avatarUrl }: PanelHeaderProps) {
                 <Image src={avatarUrl} alt="User" fill sizes="36px" className="object-cover" />
               </div>
             </div>
-            {/* Username: hidden on small screens, shown on sm+ */}
             <div className="hidden sm:flex flex-col">
               <span className="text-white text-sm font-bold leading-none">{username}</span>
             </div>
@@ -95,16 +90,15 @@ export default function PanelHeader({ username, avatarUrl }: PanelHeaderProps) {
               <div className="sm:hidden px-3 py-2 border-b border-white/5 mb-1">
                 <span className="text-white text-sm font-bold">{username}</span>
               </div>
-              <Link
-                href="/api/auth/logout"
-                onClick={() => setDropdownOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-400/10 hover:text-red-300 transition-colors text-sm font-bold"
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-400/10 hover:text-red-300 transition-colors text-sm font-bold w-full"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
                 </svg>
                 Logout
-              </Link>
+              </button>
             </div>
           </div>
         </div>
