@@ -16,7 +16,30 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Shard | 24/7 Hosting",
-  description: "Simple, affordable hosting built for Discord bots. Deploy in seconds, forget about downtime.",
+  description:
+    "Simple, affordable hosting built for Discord bots. Deploy in seconds, forget about downtime.",
+  openGraph: {
+    title: "Shard | 24/7 Hosting",
+    description:
+      "Simple, affordable hosting built for Discord bots. Deploy in seconds, forget about downtime.",
+    images: [
+      {
+        url: "/images/image.png",
+        width: 1080,
+        height: 1080,
+        alt: "Shard — 24/7 Discord Bot Hosting",
+      },
+    ],
+    type: "website",
+    siteName: "Shard",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Shard | 24/7 Hosting",
+    description:
+      "Simple, affordable hosting built for Discord bots. Deploy in seconds, forget about downtime.",
+    images: ["/images/discord-hand.png"],
+  },
 };
 
 export default function RootLayout({
