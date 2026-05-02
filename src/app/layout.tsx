@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dynexus — Discord Bot Hosting",
+  title: "Shard | 24/7 Hosting",
   description: "Simple, affordable hosting built for Discord bots. Deploy in seconds, forget about downtime.",
 };
 
