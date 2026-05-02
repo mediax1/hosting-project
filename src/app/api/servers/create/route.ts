@@ -4,6 +4,9 @@ import clientPromise from "@/lib/mongodb";
 import { createPteroUser, getPteroUserByExternalId, getPteroUserByEmail, createPteroServer, setPteroUserPassword } from "@/lib/pterodactyl";
 import { PLANS, type PlanKey, type Duration } from "@/lib/plans";
 
+const SERVER_LIMITS: Record<string, number> = {
+  free: 1,
+};
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
@@ -48,13 +51,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Not enough credits. You need ${cost} credits.` }, { status: 400 });
   }
 
+  const userTier: string = record.tier ?? "free";
+  const serverLimit = SERVER_LIMITS[userTier] ?? 1;
+  const activeServers = (record.servers ?? []).filter(
+    (s: { status: string }) => s.status === "active"
+  );
+
+  if (activeServers.length >= serverLimit) {
+    return NextResponse.json(
+      { error: "Free users can only create 1 server. Upgrade to create more." },
+      { status: 403 }
+    );
+  }
+
   const email = user.email ?? `${user.id}@dynexus.space`;
   const password = crypto.randomUUID();
   let pteroUser = await getPteroUserByExternalId(user.id);
   if (!pteroUser) pteroUser = await getPteroUserByEmail(email);
 
   if (!pteroUser) {
-    // New user — create with password and store it
     pteroUser = await createPteroUser(user.id, user.username, email);
     await setPteroUserPassword(pteroUser, password);
     await col.updateOne(
@@ -62,14 +77,13 @@ export async function POST(request: NextRequest) {
       { $set: { pteroPassword: password, pteroEmail: email } }
     );
   } else if (!record.pteroPassword) {
-    // Existing ptero user but we never stored their password — set one now
     await setPteroUserPassword(pteroUser, password);
     await col.updateOne(
       { discordId: user.id },
       { $set: { pteroPassword: password, pteroEmail: email } }
     );
   }
-  // If pteroPassword already exists in DB, skip — password stays the same
+
   let pteroServer;
   try {
     pteroServer = await createPteroServer({
@@ -101,7 +115,6 @@ export async function POST(request: NextRequest) {
     status: "active",
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MongoDB's UpdateFilter types are overly strict with union types
   await col.updateOne(
     { discordId: user.id },
     {

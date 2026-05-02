@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
         claimDate: null,
         lastClaimAt: null,
         servers: [],
+        tier: "free",
         createdAt: new Date(),
       });
     }
