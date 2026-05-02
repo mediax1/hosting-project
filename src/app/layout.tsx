@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://shard.dynexus.space"),
   title: "Shard | 24/7 Hosting",
   description:
     "Simple, affordable hosting built for Discord bots. Deploy in seconds, forget about downtime.",
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
     title: "Shard | 24/7 Hosting",
     description:
       "Simple, affordable hosting built for Discord bots. Deploy in seconds, forget about downtime.",
-    images: ["/images/discord-hand.png"],
+    images: ["/images/image.png"],
   },
 };
 
